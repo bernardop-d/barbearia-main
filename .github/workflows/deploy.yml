@@ -1,0 +1,57 @@
+name: Deploy Web to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Build admin panel
+      - name: Install admin dependencies
+        working-directory: ./barbearia-main
+        run: npm ci
+
+      - name: Build admin
+        working-directory: ./barbearia-main
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      # Build booking site
+      - name: Install booking dependencies
+        working-directory: ./booking
+        run: npm install
+
+      - name: Build booking
+        working-directory: ./booking
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      # Merge outputs: admin at root, booking at /booking/
+      - name: Prepare deploy folder
+        run: |
+          mkdir -p deploy
+          cp -r barbearia-main/dist/. deploy/
+          mkdir -p deploy/booking
+          cp -r booking/dist/. deploy/booking/
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./deploy

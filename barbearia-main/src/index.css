@@ -1,0 +1,59 @@
+/* src/index.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { -webkit-tap-highlight-color: transparent; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background-color: #0a0a0a;
+    color: #f5f5f5;
+    overscroll-behavior: none;
+  }
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: #1a1a1a; }
+  ::-webkit-scrollbar-thumb { background: #3d3d3d; border-radius: 4px; }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-blade-500 hover:bg-blade-400 active:bg-blade-600
+           text-ink-900 font-semibold rounded-2xl px-6 py-3
+           transition-all duration-200 active:scale-95
+           shadow-lg shadow-blade-500/20 w-full;
+  }
+  .btn-ghost {
+    @apply border border-ink-700 hover:border-ink-500 hover:bg-ink-800
+           text-ink-300 hover:text-white font-medium rounded-2xl px-6 py-3
+           transition-all duration-200 active:scale-95 w-full;
+  }
+  .card {
+    @apply bg-ink-800 rounded-3xl border border-ink-700/60 p-5
+           shadow-xl shadow-black/30;
+  }
+  .input {
+    @apply w-full bg-ink-700/60 border border-ink-600 rounded-2xl
+           px-4 py-3 text-white placeholder-ink-400
+           focus:outline-none focus:border-blade-500 focus:bg-ink-700
+           transition-all duration-200 text-sm;
+  }
+  .badge {
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  .badge-confirmado { @apply badge bg-blade-500/20 text-blade-400 border border-blade-500/30; }
+  .badge-finalizado { @apply badge bg-gold-600/20 text-gold-400 border border-gold-600/30; }
+  .badge-cancelado  { @apply badge bg-red-500/20  text-red-400  border border-red-500/30;  }
+  .badge-pendente   { @apply badge bg-ink-600/40  text-ink-300  border border-ink-500/30;  }
+}
+
+@layer utilities {
+  .text-gradient {
+    background: linear-gradient(135deg, #22c55e, #4ade80);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 1rem); }
+}
