@@ -118,7 +118,6 @@ export default function BookingScreen({ navigation }) {
                 style={[s.servicoCard, ativo && s.servicoCardActive]}
                 onPress={() => setServico(sv)}
               >
-                <Ionicons name={sv.icon} size={22} color={ativo ? COLORS.green : COLORS.textMuted} style={s.servicoIcon} />
                 <View style={s.servicoInfo}>
                   <Text style={[s.servicoLabel, ativo && s.servicoLabelActive]}>{sv.label}</Text>
                   <Text style={s.servicoDesc}>{sv.desc}</Text>
@@ -274,18 +273,17 @@ const s = StyleSheet.create({
 
   servicoCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    padding: 14, borderRadius: 18, borderWidth: 1,
+    padding: 14, paddingHorizontal: 16, borderRadius: 10, borderWidth: 1,
     borderColor: COLORS.border, backgroundColor: COLORS.card,
     marginBottom: 8,
   },
   servicoCardActive: { borderColor: COLORS.greenBorder, backgroundColor: COLORS.greenBg },
-  servicoIcon:       { width: 24 },
   servicoInfo:       { flex: 1 },
-  servicoLabel:      { color: COLORS.white, fontSize: 14, fontWeight: '700' },
+  servicoLabel:      { color: COLORS.white, fontSize: 14, fontWeight: '600' },
   servicoLabelActive: { color: COLORS.green },
-  servicoDesc:       { color: COLORS.textMuted, fontSize: 12, marginTop: 1 },
-  servicoPreco:      { color: COLORS.textMuted, fontSize: 13, fontWeight: '700' },
-  servicoPrecoActive: { color: COLORS.greenLight },
+  servicoDesc:       { color: COLORS.textMuted, fontSize: 11, marginTop: 2 },
+  servicoPreco:      { color: COLORS.white, fontSize: 14, fontWeight: '600' },
+  servicoPrecoActive: { color: COLORS.green },
 
   datePicker: {
     flexDirection: 'row', alignItems: 'center', gap: 12,

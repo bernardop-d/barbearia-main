@@ -68,12 +68,12 @@ export default function AgendaScreen({ navigation }) {
 
   async function handleStatus(id, status) {
     try { await atualizarStatus(id, status); await fetchData() }
-    catch (e) { Alert.alert('Erro', 'Não foi possível atualizar o status. Tente novamente.') }
+    catch { Alert.alert('Erro', 'Não foi possível atualizar o status. Tente novamente.') }
   }
 
   async function handlePago(id, pago) {
     try { await atualizarAgendamento(id, { pago }); await fetchData() }
-    catch (e) { Alert.alert('Erro', 'Não foi possível atualizar o pagamento. Tente novamente.') }
+    catch { Alert.alert('Erro', 'Não foi possível atualizar o pagamento. Tente novamente.') }
   }
 
   function handleRemover(agendamento) {
@@ -86,7 +86,7 @@ export default function AgendaScreen({ navigation }) {
           text: 'Remover', style: 'destructive',
           onPress: async () => {
             try { await removerAgendamento(agendamento.id); await fetchData() }
-            catch (e) { console.error(e) }
+            catch { Alert.alert('Erro', 'Não foi possível remover.') }
           },
         },
       ]
@@ -102,8 +102,7 @@ export default function AgendaScreen({ navigation }) {
       `*Valor:* ${formatMoeda(agendamento.preco)}\n\nTe esperamos!`
     )
     const numero = agendamento.whatsapp?.replace(/\D/g, '')
-    const url = numero ? `https://wa.me/55${numero}?text=${msg}` : `https://wa.me/?text=${msg}`
-    Linking.openURL(url)
+    Linking.openURL(numero ? `https://wa.me/55${numero}?text=${msg}` : `https://wa.me/?text=${msg}`)
   }
 
   if (loading) {
@@ -120,19 +119,21 @@ export default function AgendaScreen({ navigation }) {
         contentContainerStyle={s.container}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData() }} tintColor={COLORS.green} />}
       >
-        <View style={s.header}>
-          <Text style={s.title}>Agenda</Text>
-          <Text style={s.subtitle}>{agendamentos.length} agendamento(s) no total</Text>
+        <Text style={s.countText}>{agendamentos.length} agendamento(s) no total</Text>
+
+        {/* Busca */}
+        <View style={s.searchBar}>
+          <Ionicons name="search-outline" size={16} color="#333" />
+          <TextInput
+            style={s.searchInput}
+            placeholder="Buscar por nome ou serviço..."
+            placeholderTextColor="#333"
+            value={busca}
+            onChangeText={setBusca}
+          />
         </View>
 
-        <TextInput
-          style={[INPUT, s.searchInput]}
-          placeholder="Buscar por nome ou serviço..."
-          placeholderTextColor={COLORS.textDim}
-          value={busca}
-          onChangeText={setBusca}
-        />
-
+        {/* Filtros */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filtros} contentContainerStyle={s.filtrosContent}>
           {FILTROS.map(f => (
             <TouchableOpacity
@@ -147,7 +148,7 @@ export default function AgendaScreen({ navigation }) {
 
         {lista.length === 0 ? (
           <View style={[CARD, s.emptyCard]}>
-            <Ionicons name="calendar-outline" size={40} color={COLORS.textDim} style={{ marginBottom: 12 }} />
+            <Ionicons name="calendar-outline" size={32} color="#2a2a2a" style={{ marginBottom: 12 }} />
             <Text style={s.emptyText}>Nenhum agendamento encontrado</Text>
           </View>
         ) : (
@@ -186,14 +187,13 @@ function AgendamentoCard({ agendamento, expanded, onToggle, onStatus, onPago, on
             const horaFmt = formatHora(agendamento.data)
             const numero  = agendamento.whatsapp?.replace(/\D/g, '')
             const msg = encodeURIComponent(`Olá, ${agendamento.nome}! Passando para lembrar que seu horário na *DUNGABARBER* é hoje às *${horaFmt}*. Até logo!`)
-            const url = numero ? `https://wa.me/55${numero}?text=${msg}` : `https://wa.me/?text=${msg}`
-            Linking.openURL(url)
+            Linking.openURL(numero ? `https://wa.me/55${numero}?text=${msg}` : `https://wa.me/?text=${msg}`)
           }}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Ionicons name="time-outline" size={14} color={COLORS.orange} />
-              <Text style={s.alertText}>Falta menos de 1h — avisar cliente</Text>
-            </View>
+            <Ionicons name="time-outline" size={14} color={COLORS.orange} />
+            <Text style={s.alertText}>Falta menos de 1h — avisar cliente</Text>
+          </View>
         </TouchableOpacity>
       )}
 
@@ -244,8 +244,8 @@ function AgendamentoCard({ agendamento, expanded, onToggle, onStatus, onPago, on
           <View style={s.actionRow}>
             <TouchableOpacity style={[s.actionBtn, s.actionWa]} onPress={() => onWhatsApp(agendamento)}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Ionicons name="logo-whatsapp" size={14} color="#4ade80" />
-                <Text style={[s.actionBtnText, { color: '#4ade80' }]}>WhatsApp</Text>
+                <Ionicons name="logo-whatsapp" size={13} color="#00e87a" />
+                <Text style={[s.actionBtnText, { color: '#00e87a' }]}>WhatsApp</Text>
               </View>
             </TouchableOpacity>
             <TouchableOpacity style={[s.actionBtn, s.actionGhost]} onPress={onEditar}>
@@ -264,81 +264,71 @@ function AgendamentoCard({ agendamento, expanded, onToggle, onStatus, onPago, on
 const s = StyleSheet.create({
   bg:        { flex: 1, backgroundColor: COLORS.bg },
   center:    { alignItems: 'center', justifyContent: 'center' },
-  container: { padding: 20, paddingBottom: 40 },
-  header:    { marginBottom: 16 },
-  title:     { color: COLORS.white, fontSize: 24, fontWeight: '900', letterSpacing: 1 },
-  subtitle:  { color: COLORS.textMuted, fontSize: 12, marginTop: 2 },
-  searchInput: { marginBottom: 12 },
-  filtros:   { marginBottom: 16 },
+  container: { padding: 20, paddingBottom: 80 },
+
+  countText: { color: COLORS.textMuted, fontSize: 13, marginBottom: 16 },
+
+  searchBar: {
+    backgroundColor: COLORS.card, borderWidth: 1, borderColor: COLORS.border,
+    borderRadius: 10, flexDirection: 'row', alignItems: 'center',
+    gap: 10, paddingHorizontal: 14, paddingVertical: 11, marginBottom: 12,
+  },
+  searchInput: { flex: 1, color: COLORS.white, fontSize: 13, backgroundColor: 'transparent' },
+
+  filtros:        { marginBottom: 16 },
   filtrosContent: { gap: 8, paddingRight: 20 },
   filtroBtn: {
-    paddingHorizontal: 14, paddingVertical: 8,
-    borderRadius: 12, borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.card,
+    paddingHorizontal: 14, paddingVertical: 7,
+    borderRadius: 20, borderWidth: 1,
+    borderColor: COLORS.border, backgroundColor: COLORS.card,
   },
-  filtroBtnActive: {
-    backgroundColor: COLORS.greenBg,
-    borderColor: COLORS.greenBorder,
-  },
-  filtroText:       { color: COLORS.textMuted, fontSize: 12, fontWeight: '600' },
+  filtroBtnActive: { backgroundColor: COLORS.greenBg, borderColor: COLORS.greenBorder },
+  filtroText:       { color: '#888', fontSize: 11, fontWeight: '600', letterSpacing: 0.05 * 11 },
   filtroTextActive: { color: COLORS.green },
-  emptyCard:  { alignItems: 'center', paddingVertical: 48 },
-  emptyText:  { color: COLORS.textMuted, fontSize: 13 },
-  card:       { marginBottom: 8 },
-  cardAlert:  { borderColor: 'rgba(249,115,22,0.4)' },
+
+  emptyCard: { alignItems: 'center', paddingVertical: 48 },
+  emptyText: { color: COLORS.textMuted, fontSize: 13 },
+
+  card:      { marginBottom: 8 },
+  cardAlert: { borderColor: 'rgba(245,166,35,0.35)' },
   alertBar: {
-    backgroundColor: COLORS.orangeBg,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: COLORS.orangeBorder,
-    padding: 10,
-    marginBottom: 12,
-    alignItems: 'center',
+    backgroundColor: COLORS.orangeBg, borderRadius: 8, borderWidth: 1,
+    borderColor: COLORS.orangeBorder, padding: 10, marginBottom: 12, alignItems: 'center',
   },
-  alertText:  { color: COLORS.orange, fontSize: 12, fontWeight: '600' },
-  cardRow:    { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  alertText: { color: COLORS.orange, fontSize: 12, fontWeight: '600' },
+
+  cardRow:    { flexDirection: 'row', alignItems: 'center', gap: 12 },
   avatar: {
-    width: 44, height: 44,
-    backgroundColor: COLORS.cardAlt,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 38, height: 38, backgroundColor: 'rgba(0,232,122,0.12)',
+    borderRadius: 8, alignItems: 'center', justifyContent: 'center',
   },
-  avatarText:  { color: COLORS.greenLight, fontSize: 18, fontWeight: '800' },
-  cardInfo:    { flex: 1 },
-  cardNome:    { color: COLORS.white, fontSize: 14, fontWeight: '600' },
-  cardSub:     { color: COLORS.textMuted, fontSize: 11, marginTop: 2 },
-  cardRight:   { alignItems: 'flex-end' },
-  cardPreco:   { color: COLORS.greenLight, fontSize: 13, fontWeight: '700' },
-  statusBadge: {
-    borderRadius: 6, borderWidth: 1,
-    paddingHorizontal: 6, paddingVertical: 2, marginTop: 3,
-  },
-  statusText: { fontSize: 9, fontWeight: '700', textTransform: 'uppercase' },
-  chevron:    { color: COLORS.textDim, fontSize: 22, fontWeight: '300', transform: [{ rotate: '90deg' }] },
+  avatarText: { color: COLORS.green, fontSize: 15, fontWeight: '700' },
+  cardInfo:   { flex: 1 },
+  cardNome:   { color: COLORS.white, fontSize: 14, fontWeight: '600' },
+  cardSub:    { color: COLORS.textMuted, fontSize: 11, marginTop: 2 },
+  cardRight:  { alignItems: 'flex-end' },
+  cardPreco:  { color: COLORS.green, fontSize: 14, fontWeight: '700' },
+  statusBadge: { borderRadius: 4, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 4, marginTop: 4 },
+  statusText:  { fontSize: 9, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.08 * 9 },
+  chevron:     { color: COLORS.textMuted, fontSize: 22, fontWeight: '300', transform: [{ rotate: '90deg' }] },
   chevronOpen: { transform: [{ rotate: '-90deg' }] },
-  expanded: {
-    marginTop: 14, paddingTop: 14,
-    borderTopWidth: 1, borderTopColor: COLORS.border,
-    gap: 8,
-  },
-  actionRow:  { flexDirection: 'row', gap: 8 },
+
+  expanded: { marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: COLORS.border, gap: 8 },
+  actionRow: { flexDirection: 'row', gap: 8 },
   actionBtn: {
-    flex: 1, paddingVertical: 10, borderRadius: 12,
-    borderWidth: 1, alignItems: 'center',
-    borderColor: COLORS.border, backgroundColor: COLORS.cardAlt,
+    flex: 1, paddingVertical: 10, borderRadius: 10, borderWidth: 1,
+    alignItems: 'center', borderColor: COLORS.border, backgroundColor: COLORS.cardAlt,
   },
   actionGreen: { backgroundColor: COLORS.greenBg, borderColor: COLORS.greenBorder },
   actionGold:  { backgroundColor: COLORS.goldBg,  borderColor: COLORS.goldBorder },
-  actionWa:    { backgroundColor: 'rgba(34,197,94,0.08)', borderColor: 'rgba(34,197,94,0.25)' },
+  actionWa:    { backgroundColor: 'rgba(0,232,122,0.08)', borderColor: 'rgba(0,232,122,0.25)' },
   actionGhost: { backgroundColor: COLORS.cardAlt, borderColor: COLORS.border },
   actionBtnText: { fontSize: 12, fontWeight: '600' },
   pagoBtn: {
-    paddingVertical: 11, borderRadius: 12, borderWidth: 1,
+    paddingVertical: 11, borderRadius: 10, borderWidth: 1,
     alignItems: 'center', borderColor: COLORS.border, backgroundColor: COLORS.cardAlt,
   },
-  pagoBtnAtivo: { backgroundColor: COLORS.emeraldBg, borderColor: COLORS.emeraldBorder },
-  pagoBtnText:  { color: COLORS.textMuted, fontSize: 13, fontWeight: '600' },
+  pagoBtnAtivo:     { backgroundColor: COLORS.emeraldBg, borderColor: COLORS.emeraldBorder },
+  pagoBtnText:      { color: COLORS.textMuted, fontSize: 13, fontWeight: '600' },
   pagoBtnTextAtivo: { color: COLORS.emerald },
 })

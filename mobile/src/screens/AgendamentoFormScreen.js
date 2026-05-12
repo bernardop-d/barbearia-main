@@ -5,7 +5,7 @@ import {
 } from 'react-native'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { Ionicons } from '@expo/vector-icons'
-import { COLORS, CARD, INPUT, BTN_PRIMARY, BTN_GHOST, LABEL } from '../theme'
+import { COLORS, INPUT, BTN_PRIMARY, BTN_GHOST, LABEL } from '../theme'
 import { criarAgendamento, atualizarAgendamento } from '../services/supabase'
 import { SERVICOS, STATUS_OPTS } from '../constants'
 
@@ -159,10 +159,9 @@ export default function AgendamentoFormScreen({ route, navigation }) {
                   style={[s.servicoBtn, active && s.servicoBtnActive]}
                   onPress={() => handleServico(sv.id)}
                 >
-                  <Ionicons name={sv.icon} size={18} color={active ? COLORS.green : COLORS.textMuted} style={{ marginBottom: 4 }} />
                   <Text style={[s.servicoLabel, active && s.servicoLabelActive]}>{sv.label}</Text>
                   {sv.preco > 0 && (
-                    <Text style={s.servicoPreco}>R${sv.preco}</Text>
+                    <Text style={[s.servicoPreco, active && s.servicoPrecActive]}>R${sv.preco}</Text>
                   )}
                 </TouchableOpacity>
               )
@@ -302,16 +301,17 @@ const s = StyleSheet.create({
   title:       { color: COLORS.white, fontSize: 24, fontWeight: '900', letterSpacing: 1 },
   subtitle:    { color: COLORS.textMuted, fontSize: 13, marginTop: 4 },
   field:       { marginBottom: 18 },
-  servicosGrid: { flexDirection: 'row', gap: 8 },
+  servicosGrid:   { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   servicoBtn: {
-    flex: 1, alignItems: 'center', paddingVertical: 12,
-    borderRadius: 16, borderWidth: 1,
+    width: '47.5%', paddingVertical: 14, paddingHorizontal: 12,
+    borderRadius: 10, borderWidth: 1,
     backgroundColor: COLORS.card, borderColor: COLORS.border,
   },
-  servicoBtnActive: { backgroundColor: COLORS.greenBg, borderColor: COLORS.greenBorder },
-  servicoLabel:     { color: COLORS.textMuted, fontSize: 11, fontWeight: '600' },
+  servicoBtnActive:  { backgroundColor: COLORS.greenBg, borderColor: COLORS.greenBorder },
+  servicoLabel:      { color: COLORS.white, fontSize: 13, fontWeight: '600' },
   servicoLabelActive: { color: COLORS.green },
-  servicoPreco:     { color: COLORS.textDim, fontSize: 9, marginTop: 2 },
+  servicoPreco:      { color: COLORS.textMuted, fontSize: 11, marginTop: 2, fontWeight: '500' },
+  servicoPrecActive: { color: 'rgba(0,232,122,0.55)' },
   datePicker:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   dateText:         { color: COLORS.white, fontSize: 15 },
   datePlaceholder:  { color: COLORS.textDim, fontSize: 15 },

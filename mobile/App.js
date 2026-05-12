@@ -7,22 +7,24 @@ import { registrarPushToken } from './src/services/notifications'
 import { NavigationContainer } from '@react-navigation/native'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
+
 import { Ionicons } from '@expo/vector-icons'
 import { AuthProvider, useAuth } from './src/context/AuthContext'
 import { COLORS } from './src/theme'
 
-import LoginScreen            from './src/screens/LoginScreen'
-import DashboardScreen        from './src/screens/DashboardScreen'
-import AgendaScreen           from './src/screens/AgendaScreen'
-import AgendamentoFormScreen  from './src/screens/AgendamentoFormScreen'
-import BookingScreen          from './src/screens/BookingScreen'
-import BookingSuccessScreen   from './src/screens/BookingSuccessScreen'
+import LoginScreen           from './src/screens/LoginScreen'
+import DashboardScreen       from './src/screens/DashboardScreen'
+import AgendaScreen          from './src/screens/AgendaScreen'
+import AgendamentoFormScreen from './src/screens/AgendamentoFormScreen'
+import AdminConfigScreen     from './src/screens/AdminConfigScreen'
+import BookingScreen         from './src/screens/BookingScreen'
+import BookingSuccessScreen  from './src/screens/BookingSuccessScreen'
 
 const Tab   = createBottomTabNavigator()
 const Stack = createNativeStackNavigator()
 
 const TAB_BAR_STYLE = {
-  backgroundColor: COLORS.card,
+  backgroundColor: COLORS.bg,
   borderTopColor: COLORS.border,
   borderTopWidth: 1,
   paddingBottom: 6,
@@ -33,21 +35,34 @@ const TAB_BAR_STYLE = {
 const SCREEN_OPTIONS = {
   headerStyle: { backgroundColor: COLORS.bg },
   headerTintColor: COLORS.white,
-  headerTitleStyle: { fontWeight: '800', letterSpacing: 0.5 },
+  headerTitleStyle: { fontWeight: '700', letterSpacing: -0.3 },
   headerShadowVisible: false,
   contentStyle: { backgroundColor: COLORS.bg },
 }
 
-// ─── Admin: Stack com tabs + tela de edição ──────────────────────────────────
-function AdminStack() {
+const ADMIN_ICONS = {
+  Dashboard: 'speedometer-outline',
+  Agenda:    'calendar-outline',
+  Novo:      'add-circle-outline',
+  Config:    'settings-outline',
+  Agendar:   'cut-outline',
+}
+
+function BookingStack() {
   return (
     <Stack.Navigator screenOptions={SCREEN_OPTIONS}>
-      <Stack.Screen name="AdminTabs" component={AdminTabs} options={{ headerShown: false }} />
-      <Stack.Screen
-        name="EditarAgendamento"
-        component={AgendamentoFormScreen}
-        options={{ title: 'Editar Agendamento', presentation: 'modal' }}
-      />
+      <Stack.Screen name="Booking"       component={BookingScreen}        options={{ headerShown: false }} />
+      <Stack.Screen name="BookingSuccess" component={BookingSuccessScreen} options={{ title: 'Confirmação', headerBackVisible: false }} />
+    </Stack.Navigator>
+  )
+}
+
+// Logged-in: 5 flat tabs wrapped in a stack for the edit modal
+function AdminRoot() {
+  return (
+    <Stack.Navigator screenOptions={SCREEN_OPTIONS}>
+      <Stack.Screen name="AdminTabs"         component={AdminTabs}            options={{ headerShown: false }} />
+      <Stack.Screen name="EditarAgendamento" component={AgendamentoFormScreen} options={{ title: 'Editar Agendamento', presentation: 'modal' }} />
     </Stack.Navigator>
   )
 }
@@ -59,44 +74,22 @@ function AdminTabs() {
         ...SCREEN_OPTIONS,
         tabBarStyle: TAB_BAR_STYLE,
         tabBarActiveTintColor: COLORS.green,
-        tabBarInactiveTintColor: COLORS.textMuted,
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600', marginBottom: 2 },
-        tabBarIcon: ({ size, color }) => {
-          const icons = { Dashboard: 'speedometer-outline', Agenda: 'calendar-outline', Novo: 'add-circle-outline' }
-          return <Ionicons name={icons[route.name]} size={size} color={color} />
-        },
+        tabBarInactiveTintColor: '#444',
+        tabBarLabelStyle: { fontSize: 9, fontWeight: '500', letterSpacing: 0.6, textTransform: 'uppercase' },
+        tabBarIcon: ({ size, color }) => (
+          <Ionicons name={ADMIN_ICONS[route.name]} size={size} color={color} />
+        ),
       })}
     >
-      <Tab.Screen name="Dashboard" component={DashboardScreen} options={{ title: 'Dashboard' }} />
-      <Tab.Screen name="Agenda"    component={AgendaScreen}    options={{ title: 'Agenda' }} />
-      <Tab.Screen
-        name="Novo"
-        component={AgendamentoFormScreen}
-        options={{ title: 'Novo', headerTitle: 'Novo Agendamento' }}
-      />
+      <Tab.Screen name="Dashboard" component={DashboardScreen}       options={{ title: 'Dashboard', headerShown: false }} />
+      <Tab.Screen name="Agenda"    component={AgendaScreen}          options={{ title: 'Agenda' }} />
+      <Tab.Screen name="Novo"      component={AgendamentoFormScreen} options={{ title: 'Novo', headerTitle: 'Novo Agendamento' }} />
+      <Tab.Screen name="Config"    component={AdminConfigScreen}     options={{ title: 'Admin', headerTitle: 'Configurações' }} />
+      <Tab.Screen name="Agendar"   component={BookingStack}          options={{ title: 'Agendar', headerShown: false }} />
     </Tab.Navigator>
   )
 }
 
-// ─── Booking: Stack público ──────────────────────────────────────────────────
-function BookingStack() {
-  return (
-    <Stack.Navigator screenOptions={SCREEN_OPTIONS}>
-      <Stack.Screen
-        name="Booking"
-        component={BookingScreen}
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="BookingSuccess"
-        component={BookingSuccessScreen}
-        options={{ title: 'Confirmação', headerBackVisible: false }}
-      />
-    </Stack.Navigator>
-  )
-}
-
-// ─── Raiz: troca entre autenticado e guest ───────────────────────────────────
 function RootNavigator() {
   const { user, loading } = useAuth()
 
@@ -112,30 +105,9 @@ function RootNavigator() {
     )
   }
 
-  if (user) {
-    // Usuário logado: Admin tabs + aba de Agendamento público
-    return (
-      <Tab.Navigator
-        screenOptions={({ route }) => ({
-          ...SCREEN_OPTIONS,
-          headerShown: false,
-          tabBarStyle: TAB_BAR_STYLE,
-          tabBarActiveTintColor: COLORS.green,
-          tabBarInactiveTintColor: COLORS.textMuted,
-          tabBarLabelStyle: { fontSize: 11, fontWeight: '600', marginBottom: 2 },
-          tabBarIcon: ({ size, color }) => {
-            const icons = { Admin: 'settings-outline', Agendar: 'cut-outline' }
-            return <Ionicons name={icons[route.name]} size={size} color={color} />
-          },
-        })}
-      >
-        <Tab.Screen name="Admin"   component={AdminStack}   options={{ title: 'Admin' }} />
-        <Tab.Screen name="Agendar" component={BookingStack} options={{ title: 'Agendar' }} />
-      </Tab.Navigator>
-    )
-  }
+  if (user) return <AdminRoot />
 
-  // Guest: aba de Agendamento + Login de admin
+  // Guest: Agendar + Login
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -143,8 +115,8 @@ function RootNavigator() {
         headerShown: false,
         tabBarStyle: TAB_BAR_STYLE,
         tabBarActiveTintColor: COLORS.green,
-        tabBarInactiveTintColor: COLORS.textMuted,
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600', marginBottom: 2 },
+        tabBarInactiveTintColor: '#444',
+        tabBarLabelStyle: { fontSize: 9, fontWeight: '500', letterSpacing: 0.6, textTransform: 'uppercase' },
         tabBarIcon: ({ size, color }) => {
           const icons = { Agendar: 'cut-outline', Entrar: 'lock-closed-outline' }
           return <Ionicons name={icons[route.name]} size={size} color={color} />
@@ -162,7 +134,7 @@ function UpdateModal({ visible, onUpdate, onDismiss }) {
     <Modal transparent visible={visible} animationType="fade">
       <View style={s.overlay}>
         <View style={s.updateCard}>
-          <Ionicons name="refresh-circle-outline" size={48} color="#22c55e" style={{ marginBottom: 12 }} />
+          <Ionicons name="refresh-circle-outline" size={48} color={COLORS.green} style={{ marginBottom: 12 }} />
           <RNText style={s.updateTitle}>Atualização disponível</RNText>
           <RNText style={s.updateText}>Uma nova versão do DUNGABARBER está pronta. Deseja atualizar agora?</RNText>
           <TouchableOpacity style={s.updateBtn} onPress={onUpdate}>
@@ -215,7 +187,7 @@ export default function App() {
         />
         {updating && (
           <View style={s.updatingOverlay}>
-            <ActivityIndicator color="#22c55e" size="large" />
+            <ActivityIndicator color={COLORS.green} size="large" />
             <RNText style={s.updatingText}>Aplicando atualização...</RNText>
           </View>
         )}
@@ -225,28 +197,22 @@ export default function App() {
 }
 
 const s = StyleSheet.create({
-  splash: {
-    flex: 1, backgroundColor: COLORS.bg,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  overlay: {
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.7)',
-    alignItems: 'center', justifyContent: 'center', padding: 24,
-  },
+  splash: { flex: 1, backgroundColor: COLORS.bg, alignItems: 'center', justifyContent: 'center' },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'center', padding: 24 },
   updateCard: {
-    backgroundColor: '#161616', borderRadius: 24,
-    borderWidth: 1, borderColor: '#2A2A2A',
+    backgroundColor: COLORS.bg, borderRadius: 20,
+    borderWidth: 1, borderColor: COLORS.border,
     padding: 28, alignItems: 'center', width: '100%',
   },
-  updateTitle:   { color: '#fff', fontSize: 18, fontWeight: '800', marginBottom: 8 },
-  updateText:    { color: '#666', fontSize: 14, textAlign: 'center', marginBottom: 24, lineHeight: 20 },
+  updateTitle:   { color: '#fff', fontSize: 18, fontWeight: '700', marginBottom: 8 },
+  updateText:    { color: COLORS.textMuted, fontSize: 14, textAlign: 'center', marginBottom: 24, lineHeight: 20 },
   updateBtn: {
-    backgroundColor: '#22c55e', borderRadius: 14,
+    backgroundColor: COLORS.green, borderRadius: 10,
     paddingVertical: 14, width: '100%', alignItems: 'center', marginBottom: 10,
   },
-  updateBtnText: { color: '#0D0D0D', fontSize: 15, fontWeight: '700' },
+  updateBtnText: { color: '#000', fontSize: 15, fontWeight: '700' },
   laterBtn:      { paddingVertical: 10, width: '100%', alignItems: 'center' },
-  laterBtnText:  { color: '#666', fontSize: 14 },
+  laterBtnText:  { color: COLORS.textMuted, fontSize: 14 },
   updatingOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.85)',

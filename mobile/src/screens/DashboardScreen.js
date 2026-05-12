@@ -21,10 +21,6 @@ function formatHora(date) {
   return new Date(date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 }
 
-function formatMes(date) {
-  return new Date(date).toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')
-}
-
 export default function DashboardScreen({ navigation }) {
   const [agendamentos, setAgendamentos] = useState([])
   const [loading, setLoading]           = useState(true)
@@ -101,101 +97,106 @@ export default function DashboardScreen({ navigation }) {
       contentContainerStyle={s.container}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData() }} tintColor={COLORS.green} />}
     >
-      {/* Header */}
-      <View style={s.header}>
-        <View>
-          <Text style={s.greeting}>Olá, Barbeiro</Text>
-          <Text style={s.date}>{formatDataLonga(new Date())}</Text>
-        </View>
+      {/* Topbar */}
+      <View style={s.topbar}>
+        <Text style={s.topbarLabel}>Dashboard</Text>
         <TouchableOpacity style={s.logoutBtn} onPress={logout}>
           <Text style={s.logoutText}>Sair</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Faturamento */}
-      <View style={s.row}>
-        <StatCard label="Faturamento total" value={formatMoeda(stats.faturamentoTotal)} iconName="cash-outline"   accent="green" big />
-        <View style={s.spacer} />
-        <StatCard label="Este mês"           value={formatMoeda(stats.faturamentoMes)}   iconName="calendar-outline" accent="gold"  big />
+      {/* Saudação */}
+      <View style={s.greeting}>
+        <Text style={s.greetingTitle}>Olá, Barbeiro</Text>
+        <Text style={s.greetingDate}>{formatDataLonga(new Date())}</Text>
       </View>
 
-      {/* Stats menores */}
-      <View style={s.row3}>
-        <StatCard label="Hoje"        value={stats.hoje}        iconName="time-outline" />
-        <StatCard label="Confirmados" value={stats.confirmados} iconName="checkmark-circle-outline" />
-        <StatCard label="Finalizados" value={stats.finalizados} iconName="ribbon-outline" />
+      {/* Stats principais (2 cols) */}
+      <View style={s.statsRow}>
+        <StatCard label="Faturamento total" value={formatMoeda(stats.faturamentoTotal)} iconName="cash-outline"      accent="green" />
+        <StatCard label="Este mês"           value={formatMoeda(stats.faturamentoMes)}   iconName="calendar-stats-outline" accent="gold" />
       </View>
 
-      {/* Banner agendamento online */}
+      {/* Mini stats (3 cols) */}
+      <View style={s.miniRow}>
+        <MiniStat label="Hoje"        value={stats.hoje} />
+        <MiniStat label="Confirmados" value={stats.confirmados} />
+        <MiniStat label="Finalizados" value={stats.finalizados} />
+      </View>
+
+      {/* Banner CTA */}
       <TouchableOpacity
         style={s.banner}
         onPress={() => Linking.openURL('https://bernardop-d.github.io/barbearia-main/booking/')}
         activeOpacity={0.8}
       >
-        <View style={s.bannerLeft}>
-          <Ionicons name="cut-outline" size={22} color={COLORS.green} />
+        <View style={s.bannerIcon}>
+          <Ionicons name="link-outline" size={18} color={COLORS.green} />
         </View>
         <View style={s.bannerBody}>
           <Text style={s.bannerTitle}>Agendamentos sem dor de cabeça</Text>
           <Text style={s.bannerSub}>Compartilhe o link do site com seus clientes</Text>
         </View>
-        <Text style={s.bannerArrow}>›</Text>
+        <Ionicons name="chevron-forward" size={16} color="rgba(0,232,122,0.35)" />
       </TouchableOpacity>
 
       {/* Próximos */}
-      <View style={s.section}>
-        <View style={s.sectionHeader}>
-          <Text style={s.sectionTitle}>Próximos</Text>
-          <Text style={s.sectionCount}>{proximos.length} agendamentos</Text>
-        </View>
-
-        {proximos.length === 0 ? (
-          <View style={[CARD, s.emptyCard]}>
-            <Ionicons name="calendar-outline" size={40} color={COLORS.textDim} style={{ marginBottom: 12 }} />
-            <Text style={s.emptyText}>Nenhum agendamento futuro</Text>
-            <TouchableOpacity
-              style={s.emptyBtn}
-              onPress={() => navigation.navigate('Novo')}
-            >
-              <Text style={s.emptyBtnText}>Criar agendamento</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          proximos.map(a => <ProximoCard key={a.id} agendamento={a} />)
-        )}
+      <View style={s.sectionHeader}>
+        <Text style={s.sectionTitle}>Próximos</Text>
+        <Text style={s.sectionCount}>{proximos.length} agendamentos</Text>
       </View>
+
+      {proximos.length === 0 ? (
+        <View style={[CARD, s.emptyCard]}>
+          <Ionicons name="calendar-off-outline" size={32} color="#2a2a2a" style={{ marginBottom: 12 }} />
+          <Text style={s.emptyText}>Nenhum agendamento futuro</Text>
+          <TouchableOpacity style={s.emptyBtn} onPress={() => navigation.navigate('Novo')}>
+            <Text style={s.emptyBtnText}>Criar agendamento</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        proximos.map(a => <ProximoCard key={a.id} agendamento={a} />)
+      )}
     </ScrollView>
   )
 }
 
-function StatCard({ label, value, iconName, accent, big }) {
-  const valueColor  = accent === 'green' ? COLORS.greenLight : accent === 'gold' ? COLORS.goldLight : COLORS.white
-  const iconColor   = accent === 'green' ? COLORS.green : accent === 'gold' ? COLORS.gold : COLORS.textMuted
+function StatCard({ label, value, iconName, accent }) {
+  const valueColor = accent === 'green' ? COLORS.green : COLORS.gold
+  const iconColor  = accent === 'green' ? COLORS.green : COLORS.gold
   return (
-    <View style={[CARD, s.statCard, big && s.statCardBig]}>
-      <Ionicons name={iconName} size={20} color={iconColor} style={{ marginBottom: 6 }} />
-      <Text style={[s.statValue, { color: valueColor }, big && s.statValueBig]}>{value}</Text>
+    <View style={[CARD, s.statCard]}>
+      <Ionicons name={iconName} size={18} color={iconColor} style={{ marginBottom: 10 }} />
+      <Text style={[s.statValue, { color: valueColor }]}>{value}</Text>
       <Text style={s.statLabel}>{label}</Text>
     </View>
   )
 }
 
-function ProximoCard({ agendamento }) {
-  const data = new Date(agendamento.data)
+function MiniStat({ label, value }) {
   return (
-    <View style={[CARD, s.proximoCard]}>
-      <View style={s.proximoDate}>
-        <Text style={s.proximoDay}>{String(data.getDate()).padStart(2, '0')}</Text>
-        <Text style={s.proximoMonth}>{formatMes(data)}</Text>
+    <View style={[CARD, s.miniCard]}>
+      <Text style={s.miniValue}>{value}</Text>
+      <Text style={s.miniLabel}>{label}</Text>
+    </View>
+  )
+}
+
+function ProximoCard({ agendamento }) {
+  const inicial = agendamento.nome[0].toUpperCase()
+  return (
+    <View style={[CARD, s.apptCard]}>
+      <View style={s.apptAvatar}>
+        <Text style={s.apptAvatarText}>{inicial}</Text>
       </View>
-      <View style={s.proximoInfo}>
-        <Text style={s.proximoNome} numberOfLines={1}>{agendamento.nome}</Text>
-        <Text style={s.proximoSub}>{agendamento.servico} · {formatHora(data)}</Text>
+      <View style={s.apptInfo}>
+        <Text style={s.apptNome} numberOfLines={1}>{agendamento.nome}</Text>
+        <Text style={s.apptSub}>{agendamento.servico} · {formatHora(new Date(agendamento.data))}</Text>
       </View>
-      <View style={s.proximoRight}>
-        <Text style={s.proximoPreco}>{formatMoeda(agendamento.preco)}</Text>
+      <View style={s.apptRight}>
+        <Text style={s.apptPreco}>{formatMoeda(agendamento.preco)}</Text>
         <View style={s.badge}>
-          <Text style={s.badgeText}>confirmado</Text>
+          <Text style={s.badgeText}>Confirmado</Text>
         </View>
       </View>
     </View>
@@ -203,97 +204,56 @@ function ProximoCard({ agendamento }) {
 }
 
 const s = StyleSheet.create({
-  bg:        { flex: 1, backgroundColor: COLORS.bg },
-  center:    { alignItems: 'center', justifyContent: 'center' },
-  container: { padding: 20, paddingBottom: 40 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  greeting:  { color: COLORS.white, fontSize: 24, fontWeight: '900', letterSpacing: 1 },
-  date:      { color: COLORS.textMuted, fontSize: 12, marginTop: 2 },
-  logoutBtn: {
-    backgroundColor: COLORS.cardAlt,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  logoutText: { color: COLORS.textMuted, fontSize: 12, fontWeight: '600' },
+  bg:      { flex: 1, backgroundColor: COLORS.bg },
+  center:  { alignItems: 'center', justifyContent: 'center' },
+  container: { padding: 20, paddingBottom: 80 },
 
-  row:  { flexDirection: 'row', marginBottom: 10 },
-  row3: { flexDirection: 'row', marginBottom: 20, gap: 8 },
-  spacer: { width: 8 },
+  topbar:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  topbarLabel: { color: COLORS.textMuted, fontSize: 13, fontWeight: '500', letterSpacing: 0.08 * 13, textTransform: 'uppercase' },
+  logoutBtn:   { backgroundColor: COLORS.card, borderRadius: 6, borderWidth: 1, borderColor: COLORS.border, paddingHorizontal: 14, paddingVertical: 7 },
+  logoutText:  { color: '#888', fontSize: 12, fontWeight: '500', letterSpacing: 0.04 * 12 },
 
-  statCard:     { flex: 1, paddingVertical: 16 },
-  statCardBig:  { paddingVertical: 20 },
-  statValue:    { fontSize: 18, fontWeight: '800', letterSpacing: 0.5 },
-  statValueBig: { fontSize: 16 },
-  statLabel:    { color: COLORS.textMuted, fontSize: 11, marginTop: 2 },
+  greeting:      { marginBottom: 20 },
+  greetingTitle: { color: COLORS.white, fontSize: 26, fontWeight: '700', letterSpacing: -0.5, lineHeight: 30 },
+  greetingDate:  { color: COLORS.textMuted, fontSize: 13, marginTop: 4 },
 
-  section:      { marginTop: 4 },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  sectionTitle:  { color: COLORS.white, fontSize: 18, fontWeight: '800' },
-  sectionCount:  { color: COLORS.textMuted, fontSize: 12 },
+  statsRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
+  statCard: { flex: 1 },
+  statValue: { fontSize: 22, fontWeight: '700', letterSpacing: -0.5, lineHeight: 24 },
+  statLabel: { color: COLORS.textMuted, fontSize: 11, marginTop: 5, fontWeight: '500', letterSpacing: 0.06 * 11, textTransform: 'uppercase' },
 
-  emptyCard:    { alignItems: 'center', paddingVertical: 40 },
-  emptyText:    { color: COLORS.textMuted, fontSize: 13 },
-  emptyBtn: {
-    marginTop: 16,
-    backgroundColor: COLORS.greenBg,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.greenBorder,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-  },
-  emptyBtnText: { color: COLORS.green, fontSize: 13, fontWeight: '600' },
+  miniRow:   { flexDirection: 'row', gap: 10, marginBottom: 20 },
+  miniCard:  { flex: 1, alignItems: 'center', paddingVertical: 14, paddingHorizontal: 10 },
+  miniValue: { color: COLORS.white, fontSize: 22, fontWeight: '700' },
+  miniLabel: { color: COLORS.textMuted, fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.06 * 10, marginTop: 4, fontWeight: '500' },
 
   banner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(34,197,94,0.08)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(34,197,94,0.25)',
-    padding: 14,
-    marginBottom: 20,
-    gap: 12,
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: COLORS.greenBg, borderRadius: 12, borderWidth: 1, borderColor: COLORS.greenBorder,
+    padding: 14, marginBottom: 20, gap: 12,
   },
-  bannerLeft:  { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(34,197,94,0.12)', alignItems: 'center', justifyContent: 'center' },
+  bannerIcon:  { backgroundColor: 'rgba(0,232,122,0.12)', borderRadius: 8, padding: 8 },
   bannerBody:  { flex: 1 },
-  bannerTitle: { color: COLORS.greenLight, fontSize: 13, fontWeight: '700' },
-  bannerSub:   { color: COLORS.textMuted, fontSize: 11, marginTop: 2 },
-  bannerArrow: { color: COLORS.green, fontSize: 22, fontWeight: '300' },
+  bannerTitle: { color: COLORS.green, fontSize: 13, fontWeight: '600' },
+  bannerSub:   { color: 'rgba(0,232,122,0.5)', fontSize: 11, marginTop: 2 },
 
-  proximoCard:  { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
-  proximoDate: {
-    width: 48, height: 48,
-    backgroundColor: COLORS.greenBg,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: COLORS.greenBorder,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  proximoDay:   { color: COLORS.greenLight, fontSize: 14, fontWeight: '700' },
-  proximoMonth: { color: 'rgba(74,222,128,0.5)', fontSize: 10, textTransform: 'uppercase' },
-  proximoInfo:  { flex: 1 },
-  proximoNome:  { color: COLORS.white, fontSize: 14, fontWeight: '600' },
-  proximoSub:   { color: COLORS.textMuted, fontSize: 12, marginTop: 2 },
-  proximoRight: { alignItems: 'flex-end' },
-  proximoPreco: { color: COLORS.greenLight, fontSize: 14, fontWeight: '700' },
-  badge: {
-    backgroundColor: COLORS.greenBg,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: COLORS.greenBorder,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    marginTop: 4,
-  },
-  badgeText: { color: COLORS.green, fontSize: 9, fontWeight: '700', textTransform: 'uppercase' },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  sectionTitle:  { color: COLORS.white, fontSize: 15, fontWeight: '600' },
+  sectionCount:  { color: COLORS.textMuted, fontSize: 12 },
+
+  emptyCard:    { alignItems: 'center', paddingVertical: 32 },
+  emptyText:    { color: COLORS.textMuted, fontSize: 13, marginBottom: 16 },
+  emptyBtn:     { backgroundColor: COLORS.green, borderRadius: 8, paddingHorizontal: 22, paddingVertical: 11 },
+  emptyBtnText: { color: '#000', fontSize: 13, fontWeight: '700' },
+
+  apptCard:       { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
+  apptAvatar:     { width: 38, height: 38, borderRadius: 8, backgroundColor: 'rgba(0,232,122,0.12)', alignItems: 'center', justifyContent: 'center' },
+  apptAvatarText: { color: COLORS.green, fontSize: 15, fontWeight: '700' },
+  apptInfo:       { flex: 1, minWidth: 0 },
+  apptNome:       { color: COLORS.white, fontSize: 14, fontWeight: '600' },
+  apptSub:        { color: COLORS.textMuted, fontSize: 11, marginTop: 2 },
+  apptRight:      { alignItems: 'flex-end' },
+  apptPreco:      { color: COLORS.green, fontSize: 14, fontWeight: '700' },
+  badge:          { backgroundColor: 'rgba(0,232,122,0.12)', borderRadius: 4, borderWidth: 1, borderColor: 'rgba(0,232,122,0.27)', paddingHorizontal: 8, paddingVertical: 4, marginTop: 4 },
+  badgeText:      { color: COLORS.green, fontSize: 9, fontWeight: '700', letterSpacing: 0.08 * 9, textTransform: 'uppercase' },
 })
