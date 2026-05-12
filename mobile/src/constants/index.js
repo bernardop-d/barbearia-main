@@ -1,11 +1,11 @@
 export const SERVICOS = [
-  { id: 'corte',       label: 'Corte Normal',   preco: 35,  emoji: '✂️', desc: 'Corte tradicional' },
-  { id: 'combo',       label: 'Cabelo + Barba', preco: 55,  emoji: '💈', desc: 'Corte + barba completa' },
-  { id: 'platinado',   label: 'Platinado',      preco: 60,  emoji: '⚡', desc: 'Descoloração' },
-  { id: 'tinta',       label: 'Tinta Preta',    preco: 15,  emoji: '🖤', desc: 'Adicional de tinta' },
-  { id: 'mensal',      label: 'Plano Mensal',   preco: 80,  emoji: '📅', desc: 'Corte mensal' },
-  { id: 'mensaltinta', label: 'Mensal + Tinta', preco: 100, emoji: '💎', desc: 'Corte mensal + tinta' },
-  { id: 'outros',      label: 'Outros',         preco: 0,   emoji: '➕', desc: 'Outro serviço' },
+  { id: 'corte',       label: 'Corte Normal',   preco: 35,  icon: 'cut-outline',        desc: 'Corte tradicional' },
+  { id: 'combo',       label: 'Cabelo + Barba', preco: 55,  icon: 'color-wand-outline', desc: 'Corte + barba completa' },
+  { id: 'platinado',   label: 'Platinado',      preco: 60,  icon: 'flash-outline',      desc: 'Descoloração' },
+  { id: 'tinta',       label: 'Tinta Preta',    preco: 15,  icon: 'brush-outline',      desc: 'Adicional de tinta' },
+  { id: 'mensal',      label: 'Plano Mensal',   preco: 80,  icon: 'calendar-outline',   desc: 'Corte mensal' },
+  { id: 'mensaltinta', label: 'Mensal + Tinta', preco: 100, icon: 'star-outline',       desc: 'Corte mensal + tinta' },
+  { id: 'outros',      label: 'Outros',         preco: 0,   icon: 'add-circle-outline', desc: 'Outro serviço' },
 ]
 
 export const STATUS_LABEL = {

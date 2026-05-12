@@ -4,6 +4,7 @@ import {
   StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, Modal,
 } from 'react-native'
 import DateTimePicker from '@react-native-community/datetimepicker'
+import { Ionicons } from '@expo/vector-icons'
 import { COLORS, CARD, INPUT, BTN_PRIMARY, BTN_GHOST, LABEL } from '../theme'
 import { criarAgendamento, atualizarAgendamento } from '../services/supabase'
 import { SERVICOS, STATUS_OPTS } from '../constants'
@@ -158,7 +159,7 @@ export default function AgendamentoFormScreen({ route, navigation }) {
                   style={[s.servicoBtn, active && s.servicoBtnActive]}
                   onPress={() => handleServico(sv.id)}
                 >
-                  <Text style={s.servicoEmoji}>{sv.emoji}</Text>
+                  <Ionicons name={sv.icon} size={18} color={active ? COLORS.green : COLORS.textMuted} style={{ marginBottom: 4 }} />
                   <Text style={[s.servicoLabel, active && s.servicoLabelActive]}>{sv.label}</Text>
                   {sv.preco > 0 && (
                     <Text style={s.servicoPreco}>R${sv.preco}</Text>
@@ -192,7 +193,7 @@ export default function AgendamentoFormScreen({ route, navigation }) {
             <Text style={form.data ? s.dateText : s.datePlaceholder}>
               {formatDataHora(form.data)}
             </Text>
-            <Text style={s.calIcon}>📅</Text>
+            <Ionicons name="calendar-outline" size={18} color={COLORS.textMuted} />
           </TouchableOpacity>
         </View>
 
@@ -308,14 +309,12 @@ const s = StyleSheet.create({
     backgroundColor: COLORS.card, borderColor: COLORS.border,
   },
   servicoBtnActive: { backgroundColor: COLORS.greenBg, borderColor: COLORS.greenBorder },
-  servicoEmoji:     { fontSize: 18, marginBottom: 4 },
   servicoLabel:     { color: COLORS.textMuted, fontSize: 11, fontWeight: '600' },
   servicoLabelActive: { color: COLORS.green },
   servicoPreco:     { color: COLORS.textDim, fontSize: 9, marginTop: 2 },
   datePicker:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   dateText:         { color: COLORS.white, fontSize: 15 },
   datePlaceholder:  { color: COLORS.textDim, fontSize: 15 },
-  calIcon:          { fontSize: 16 },
   statusRow:        { flexDirection: 'row', gap: 8 },
   statusBtn: {
     flex: 1, paddingVertical: 10, borderRadius: 12,
