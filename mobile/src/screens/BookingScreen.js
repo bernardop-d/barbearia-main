@@ -3,6 +3,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet,
   KeyboardAvoidingView, Platform, ActivityIndicator, Image,
 } from 'react-native'
+import DateTimePicker from '@react-native-community/datetimepicker'
 import { Ionicons } from '@expo/vector-icons'
 import { COLORS, INPUT, BTN_PRIMARY, LABEL } from '../theme'
 import { criarAgendamentoPublico, buscarHorariosOcupados, buscarDiasBloqueados } from '../services/supabase'
@@ -38,6 +39,7 @@ export default function BookingScreen({ navigation }) {
   const [loadingSlots, setLoadingSlots]     = useState(false)
   const [loading, setLoading]               = useState(false)
   const [error, setError]                   = useState('')
+  const [showDatePicker, setShowDatePicker] = useState(false)
 
   useEffect(() => {
     buscarDiasBloqueados().then(setDiasBloqueados)
@@ -131,17 +133,31 @@ export default function BookingScreen({ navigation }) {
         {/* Data */}
         <View style={s.section}>
           <Text style={LABEL}>Data</Text>
-          <TextInput
-            style={INPUT}
-            value={form.data}
-            onChangeText={t => setForm(prev => ({ ...prev, data: t }))}
-            placeholder="AAAA-MM-DD"
-            placeholderTextColor={COLORS.textDim}
-            keyboardType="numeric"
-            maxLength={10}
-          />
-          {!!form.data && (
-            <Text style={s.dataExibicao}>{formatDataExibicao(form.data)}</Text>
+          <TouchableOpacity style={s.datePicker} onPress={() => setShowDatePicker(true)} activeOpacity={0.7}>
+            <Ionicons name="calendar-outline" size={18} color={COLORS.textMuted} />
+            <View style={{ flex: 1 }}>
+              <Text style={s.datePickerText}>
+                {form.data
+                  ? new Date(form.data + 'T12:00:00').toLocaleDateString('pt-BR')
+                  : 'Selecionar data'}
+              </Text>
+              {!!form.data && (
+                <Text style={s.dataExibicao}>{formatDataExibicao(form.data)}</Text>
+              )}
+            </View>
+            <Ionicons name="chevron-forward-outline" size={16} color={COLORS.textDim} />
+          </TouchableOpacity>
+          {showDatePicker && (
+            <DateTimePicker
+              value={form.data ? new Date(form.data + 'T12:00:00') : new Date()}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              minimumDate={new Date()}
+              onChange={(_, date) => {
+                setShowDatePicker(Platform.OS === 'ios')
+                if (date) setForm(prev => ({ ...prev, data: date.toISOString().slice(0, 10) }))
+              }}
+            />
           )}
         </View>
 
@@ -271,7 +287,13 @@ const s = StyleSheet.create({
   servicoPreco:      { color: COLORS.textMuted, fontSize: 13, fontWeight: '700' },
   servicoPrecoActive: { color: COLORS.greenLight },
 
-  dataExibicao: { color: COLORS.textMuted, fontSize: 12, marginTop: 6 },
+  datePicker: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: COLORS.cardAlt, borderRadius: 14, borderWidth: 1,
+    borderColor: COLORS.border, paddingHorizontal: 16, paddingVertical: 14,
+  },
+  datePickerText: { color: COLORS.white, fontSize: 15, fontWeight: '500' },
+  dataExibicao: { color: COLORS.textMuted, fontSize: 12, marginTop: 2 },
 
   loadingSlots:     { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 20 },
   loadingSlotsText: { color: COLORS.textMuted, fontSize: 13 },
