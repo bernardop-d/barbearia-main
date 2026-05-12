@@ -2,12 +2,12 @@ import { useState, useEffect, useMemo } from 'react'
 import { criarAgendamentoPublico, buscarHorariosOcupados, buscarDiasBloqueados } from './services/supabase'
 
 const SERVICOS = [
-  { id: 'corte',       label: 'Corte Normal',   preco: 35,  emoji: '✂️', desc: 'Tesoura e máquina' },
-  { id: 'combo',       label: 'Cabelo + Barba', preco: 55,  emoji: '💈', desc: 'Corte + barba completa' },
-  { id: 'platinado',   label: 'Platinado',      preco: 60,  emoji: '⚡', desc: 'Descoloração completa' },
-  { id: 'tinta',       label: 'Tinta Preta',    preco: 15,  emoji: '🖤', desc: 'Adicional de tinta' },
-  { id: 'mensal',      label: 'Plano Mensal',   preco: 80,  emoji: '📅', desc: 'Corte todo mês' },
-  { id: 'mensaltinta', label: 'Mensal + Tinta', preco: 100, emoji: '💎', desc: 'Corte mensal + tinta' },
+  { id: 'corte',       label: 'Corte Normal',   preco: 35,  desc: 'Corte tradicional' },
+  { id: 'combo',       label: 'Cabelo + Barba', preco: 55,  desc: 'Corte + barba completa' },
+  { id: 'platinado',   label: 'Platinado',      preco: 60,  desc: 'Descoloração completa' },
+  { id: 'tinta',       label: 'Tinta Preta',    preco: 15,  desc: 'Adicional de tinta' },
+  { id: 'mensal',      label: 'Plano Mensal',   preco: 80,  desc: 'Corte todo mês' },
+  { id: 'mensaltinta', label: 'Mensal + Tinta', preco: 100, desc: 'Corte mensal + tinta' },
 ]
 
 const HORARIOS = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
@@ -134,7 +134,7 @@ export default function App() {
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[200px] bg-blade-500/8 blur-3xl rounded-full" />
         </div>
         <div className="relative max-w-sm mx-auto px-6 py-10 text-center">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-blade-500/10 border border-blade-500/20 mb-5">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-blade-500/10 border border-blade-500/20 mb-5">
             <ScissorsIcon />
           </div>
           <h1 className="font-display text-5xl tracking-widest text-white leading-none mb-1">DUNGABARBER</h1>
@@ -181,9 +181,8 @@ export default function App() {
                   key={s.id}
                   type="button"
                   onClick={() => { setServico(s); setStep(2) }}
-                  className="flex items-center gap-4 p-4 rounded-2xl border transition-all duration-200 active:scale-95 text-left bg-ink-800 border-ink-700 hover:border-blade-500/40 hover:bg-blade-500/5 group"
+                  className="flex items-center gap-3 p-4 rounded-xl border transition-all duration-200 active:scale-95 text-left bg-ink-800 border-ink-700 hover:border-blade-500/40 hover:bg-blade-500/5 group"
                 >
-                  <span className="text-2xl w-9 text-center">{s.emoji}</span>
                   <div className="flex-1">
                     <p className="font-semibold text-sm text-white group-hover:text-blade-400 transition-colors">{s.label}</p>
                     <p className="text-ink-400 text-xs mt-0.5">{s.desc}</p>
@@ -205,14 +204,13 @@ export default function App() {
             <button
               type="button"
               onClick={() => setStep(1)}
-              className="flex items-center gap-3 w-full p-3 rounded-2xl bg-blade-500/8 border border-blade-500/20 mb-5 text-left"
+              className="flex items-center gap-3 w-full p-3 rounded-xl bg-blade-500/8 border border-blade-500/20 mb-5 text-left"
             >
-              <span className="text-xl">{servico.emoji}</span>
               <div className="flex-1">
                 <p className="text-blade-400 text-sm font-semibold">{servico.label}</p>
                 <p className="text-ink-400 text-xs">{formatarMoeda(servico.preco)} · toque para alterar</p>
               </div>
-              <span className="text-ink-500 text-sm">✎</span>
+              <span className="text-ink-400 text-xs font-medium">alterar</span>
             </button>
 
             <h2 className="text-xl font-bold text-white mb-1">Quando?</h2>
@@ -237,8 +235,8 @@ export default function App() {
             <div className="mb-6">
               <label className="block text-xs text-ink-400 font-medium mb-3 uppercase tracking-wider">Horário</label>
               {diasBloqueados.includes(form.data) ? (
-                <div className="bg-red-500/10 border border-red-500/20 rounded-2xl px-4 py-4 text-red-400 text-sm text-center">
-                  🔒 Sem atendimento nessa data. Escolha outro dia.
+                <div className="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-4 text-red-400 text-sm text-center">
+                  Sem atendimento nessa data. Escolha outro dia.
                 </div>
               ) : loadingSlots ? (
                 <div className="flex items-center justify-center gap-2 py-8 text-ink-500 text-sm">
@@ -255,7 +253,7 @@ export default function App() {
                         type="button"
                         disabled={ocupado}
                         onClick={() => setHoraSelecionada(hora)}
-                        className={`py-3 rounded-2xl text-sm font-semibold border transition-all duration-150 active:scale-95
+                        className={`py-3 rounded-xl text-sm font-semibold border transition-all duration-150 active:scale-95
                           ${ocupado
                             ? 'bg-ink-800/30 border-ink-700/50 text-ink-600 cursor-not-allowed line-through'
                             : ativo
@@ -386,7 +384,6 @@ function SuccessScreen({ resultado, onNovo }) {
   const data = new Date(resultado.data)
   return (
     <div className="min-h-screen bg-ink flex flex-col">
-      {/* Top accent */}
       <div className="h-1 bg-gradient-to-r from-transparent via-blade-500 to-transparent" />
 
       <div className="flex-1 flex flex-col items-center justify-center p-6">
@@ -394,18 +391,20 @@ function SuccessScreen({ resultado, onNovo }) {
           {/* Icon */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-blade-500/10 border-2 border-blade-500/30 mb-4">
-              <span className="text-4xl">✅</span>
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#00e87a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
             </div>
             <h2 className="font-display text-5xl text-white tracking-wide">Confirmado!</h2>
             <p className="text-blade-400 text-sm mt-1">Seu agendamento está garantido</p>
           </div>
 
           {/* Card resumo */}
-          <div className="card mb-6 flex flex-col gap-4">
-            <Row icon="👤" label="Cliente"  value={resultado.nome} />
-            <Row icon="✂️" label="Serviço"  value={resultado.servico} />
-            <Row icon="📅" label="Data"     value={new Date(resultado.data).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }).replace(/^./, s => s.toUpperCase())} />
-            <Row icon="⏰" label="Horário"  value={data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} />
+          <div className="card mb-6 flex flex-col gap-3">
+            <Row label="Cliente"  value={resultado.nome} />
+            <Row label="Serviço"  value={resultado.servico} />
+            <Row label="Data"     value={new Date(resultado.data).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }).replace(/^./, s => s.toUpperCase())} />
+            <Row label="Horário"  value={data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} />
             <div className="pt-3 border-t border-ink-700 flex items-center justify-between">
               <span className="text-ink-400 text-sm font-medium">Total</span>
               <span className="text-blade-400 font-mono font-bold text-lg">
@@ -414,7 +413,7 @@ function SuccessScreen({ resultado, onNovo }) {
             </div>
           </div>
 
-          <div className="bg-ink-800/50 border border-ink-700 rounded-2xl px-4 py-3 mb-6 text-center">
+          <div className="bg-ink-800 border border-ink-700 rounded-xl px-4 py-3 mb-6 text-center">
             <p className="text-ink-400 text-xs">Apareça no horário marcado. Em caso de imprevisto, avise com antecedência.</p>
           </div>
 
@@ -431,21 +430,18 @@ function SuccessScreen({ resultado, onNovo }) {
   )
 }
 
-function Row({ icon, label, value }) {
+function Row({ label, value }) {
   return (
-    <div className="flex items-center gap-3">
-      <span className="text-xl w-8 text-center">{icon}</span>
-      <div>
-        <p className="text-ink-400 text-xs uppercase tracking-wider">{label}</p>
-        <p className="text-white font-medium text-sm">{value}</p>
-      </div>
+    <div className="flex items-center justify-between gap-4">
+      <span className="text-ink-400 text-xs uppercase tracking-wider shrink-0">{label}</span>
+      <span className="text-white font-medium text-sm text-right">{value}</span>
     </div>
   )
 }
 
 function ScissorsIcon() {
   return (
-    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#00e87a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/>
       <line x1="20" y1="4" x2="8.12" y2="15.88"/>
       <line x1="14.47" y1="14.48" x2="20" y2="20"/>
