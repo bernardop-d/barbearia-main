@@ -3,22 +3,20 @@ import {
   View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet,
   KeyboardAvoidingView, Platform, ActivityIndicator, Image,
 } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { COLORS, INPUT, BTN_PRIMARY, LABEL } from '../theme'
 import { criarAgendamentoPublico, buscarHorariosOcupados, buscarDiasBloqueados } from '../services/supabase'
 import { HORARIOS } from '../constants'
+import { validarAgendamento, hojeISO } from '../utils/validar'
 
 const SERVICOS = [
-  { id: 'corte',       label: 'Corte Normal',   preco: 35,  emoji: '✂️', desc: 'Corte tradicional' },
-  { id: 'combo',       label: 'Cabelo + Barba', preco: 55,  emoji: '💈', desc: 'Corte + barba completa' },
-  { id: 'platinado',   label: 'Platinado',      preco: 60,  emoji: '⚡', desc: 'Descoloração' },
-  { id: 'tinta',       label: 'Tinta Preta',    preco: 15,  emoji: '🖤', desc: 'Adicional de tinta' },
-  { id: 'mensal',      label: 'Plano Mensal',   preco: 80,  emoji: '📅', desc: 'Corte mensal' },
-  { id: 'mensaltinta', label: 'Mensal + Tinta', preco: 100, emoji: '💎', desc: 'Corte mensal + tinta' },
+  { id: 'corte',       label: 'Corte Normal',   preco: 35,  icon: 'cut-outline',          desc: 'Corte tradicional' },
+  { id: 'combo',       label: 'Cabelo + Barba', preco: 55,  icon: 'color-wand-outline',   desc: 'Corte + barba completa' },
+  { id: 'platinado',   label: 'Platinado',      preco: 60,  icon: 'flash-outline',        desc: 'Descoloração' },
+  { id: 'tinta',       label: 'Tinta Preta',    preco: 15,  icon: 'brush-outline',        desc: 'Adicional de tinta' },
+  { id: 'mensal',      label: 'Plano Mensal',   preco: 80,  icon: 'calendar-outline',     desc: 'Corte mensal' },
+  { id: 'mensaltinta', label: 'Mensal + Tinta', preco: 100, icon: 'star-outline',         desc: 'Corte mensal + tinta' },
 ]
-
-function hojeISO() {
-  return new Date().toISOString().slice(0, 10)
-}
 
 function formatDataExibicao(dateStr) {
   if (!dateStr) return ''
@@ -29,22 +27,6 @@ function formatDataExibicao(dateStr) {
 
 function formatMoeda(v) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
-}
-
-function validar(form, hora) {
-  const nome = form.nome.trim()
-  if (!nome) return 'Informe seu nome.'
-  if (nome.length < 2) return 'Nome muito curto.'
-  if (!/^[a-zA-ZÀ-ÿ\s]+$/.test(nome)) return 'Nome inválido (só letras).'
-  if (!form.data) return 'Escolha a data.'
-  if (form.data < hojeISO()) return 'Data inválida.'
-  if (hora === null) return 'Escolha um horário.'
-  const wa = form.whatsapp.replace(/\D/g, '')
-  if (wa) {
-    if (wa.length < 10 || wa.length > 11) return 'WhatsApp inválido.'
-    if (parseInt(wa.slice(0, 2)) < 11) return 'DDD inválido.'
-  }
-  return null
 }
 
 export default function BookingScreen({ navigation }) {
@@ -84,7 +66,7 @@ export default function BookingScreen({ navigation }) {
   }, [horasOcupadas, form.data])
 
   async function handleSubmit() {
-    const err = validar(form, horaSelecionada)
+    const err = validarAgendamento(form, horaSelecionada)
     if (err) { setError(err); return }
     setError('')
     setLoading(true)
@@ -134,13 +116,13 @@ export default function BookingScreen({ navigation }) {
                 style={[s.servicoCard, ativo && s.servicoCardActive]}
                 onPress={() => setServico(sv)}
               >
-                <Text style={s.servicoEmoji}>{sv.emoji}</Text>
+                <Ionicons name={sv.icon} size={22} color={ativo ? COLORS.green : COLORS.textMuted} style={s.servicoIcon} />
                 <View style={s.servicoInfo}>
                   <Text style={[s.servicoLabel, ativo && s.servicoLabelActive]}>{sv.label}</Text>
                   <Text style={s.servicoDesc}>{sv.desc}</Text>
                 </View>
                 <Text style={[s.servicoPreco, ativo && s.servicoPrecoActive]}>{formatMoeda(sv.preco)}</Text>
-                {ativo && <Text style={s.checkIcon}>✓</Text>}
+                {ativo && <Ionicons name="checkmark-circle" size={18} color={COLORS.green} />}
               </TouchableOpacity>
             )
           })}
@@ -168,7 +150,10 @@ export default function BookingScreen({ navigation }) {
           <Text style={LABEL}>Horário disponível</Text>
           {diaBloqueado ? (
             <View style={s.bloqueioBox}>
-              <Text style={s.bloqueioText}>🔒 Sem atendimento nessa data. Escolha outro dia.</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Ionicons name="lock-closed-outline" size={14} color="#f87171" />
+                <Text style={s.bloqueioText}>Sem atendimento nessa data. Escolha outro dia.</Text>
+              </View>
             </View>
           ) : loadingSlots ? (
             <View style={s.loadingSlots}>
@@ -278,14 +263,13 @@ const s = StyleSheet.create({
     marginBottom: 8,
   },
   servicoCardActive: { borderColor: COLORS.greenBorder, backgroundColor: COLORS.greenBg },
-  servicoEmoji:      { fontSize: 24 },
+  servicoIcon:       { width: 24 },
   servicoInfo:       { flex: 1 },
   servicoLabel:      { color: COLORS.white, fontSize: 14, fontWeight: '700' },
   servicoLabelActive: { color: COLORS.green },
   servicoDesc:       { color: COLORS.textMuted, fontSize: 12, marginTop: 1 },
   servicoPreco:      { color: COLORS.textMuted, fontSize: 13, fontWeight: '700' },
   servicoPrecoActive: { color: COLORS.greenLight },
-  checkIcon:         { color: COLORS.green, fontSize: 18, fontWeight: '900' },
 
   dataExibicao: { color: COLORS.textMuted, fontSize: 12, marginTop: 6 },
 

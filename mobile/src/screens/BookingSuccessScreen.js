@@ -1,4 +1,5 @@
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { COLORS, CARD, BTN_PRIMARY } from '../theme'
 
 function formatMoeda(v) {
@@ -12,10 +13,19 @@ function formatDataExibicao(dateStr) {
 }
 
 export default function BookingSuccessScreen({ route, navigation }) {
-  const { resultado } = route.params
-  const data = new Date(resultado.data)
+  const resultado = route.params?.resultado
+
+  if (!resultado) {
+    return (
+      <View style={[s.bg, { alignItems: 'center', justifyContent: 'center', flex: 1 }]}>
+        <Text style={{ color: COLORS.textMuted }}>Sem dados de agendamento.</Text>
+      </View>
+    )
+  }
+
+  const data    = new Date(resultado.data)
   const dataStr = data.toISOString().slice(0, 10)
-  const hora = data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  const hora    = data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 
   function handleNovo() {
     navigation.reset({ index: 0, routes: [{ name: 'Booking' }] })
@@ -24,19 +34,19 @@ export default function BookingSuccessScreen({ route, navigation }) {
   return (
     <ScrollView style={s.bg} contentContainerStyle={s.container}>
       <View style={s.iconBox}>
-        <Text style={s.checkEmoji}>✅</Text>
+        <Ionicons name="checkmark-circle" size={48} color={COLORS.green} />
       </View>
       <Text style={s.title}>Agendado!</Text>
       <Text style={s.subtitle}>Seu horário está confirmado</Text>
 
       <View style={[CARD, s.card]}>
-        <Row icon="👤" label="Cliente"  value={resultado.nome} />
+        <Row iconName="person-outline"     label="Cliente"  value={resultado.nome} />
         <Divider />
-        <Row icon="✂️" label="Serviço"  value={resultado.servico} />
+        <Row iconName="cut-outline"        label="Serviço"  value={resultado.servico} />
         <Divider />
-        <Row icon="📅" label="Data"     value={formatDataExibicao(dataStr)} />
+        <Row iconName="calendar-outline"   label="Data"     value={formatDataExibicao(dataStr)} />
         <Divider />
-        <Row icon="⏰" label="Horário"  value={hora} />
+        <Row iconName="time-outline"       label="Horário"  value={hora} />
         <View style={s.totalRow}>
           <Text style={s.totalLabel}>Total</Text>
           <Text style={s.totalValue}>{formatMoeda(resultado.preco)}</Text>
@@ -50,10 +60,10 @@ export default function BookingSuccessScreen({ route, navigation }) {
   )
 }
 
-function Row({ icon, label, value }) {
+function Row({ iconName, label, value }) {
   return (
     <View style={s.row}>
-      <Text style={s.rowIcon}>{icon}</Text>
+      <Ionicons name={iconName} size={20} color={COLORS.textMuted} />
       <View>
         <Text style={s.rowLabel}>{label}</Text>
         <Text style={s.rowValue}>{value}</Text>
@@ -80,13 +90,11 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 20,
   },
-  checkEmoji: { fontSize: 40 },
   title:    { color: COLORS.white, fontSize: 30, fontWeight: '900', letterSpacing: 1 },
   subtitle: { color: COLORS.textMuted, fontSize: 14, marginTop: 4, marginBottom: 28 },
 
   card: { width: '100%', marginBottom: 24, gap: 0 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
-  rowIcon:  { fontSize: 22 },
   rowLabel: { color: COLORS.textMuted, fontSize: 11 },
   rowValue: { color: COLORS.white, fontSize: 15, fontWeight: '600', marginTop: 1 },
   divider:  { height: 1, backgroundColor: COLORS.border, marginHorizontal: -16 },

@@ -3,6 +3,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   RefreshControl, ActivityIndicator, Linking,
 } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { COLORS, CARD } from '../theme'
 import { getAgendamentos, logout, supabase } from '../services/supabase'
 
@@ -103,7 +104,7 @@ export default function DashboardScreen({ navigation }) {
       {/* Header */}
       <View style={s.header}>
         <View>
-          <Text style={s.greeting}>Olá, Barbeiro! ✂️</Text>
+          <Text style={s.greeting}>Olá, Barbeiro</Text>
           <Text style={s.date}>{formatDataLonga(new Date())}</Text>
         </View>
         <TouchableOpacity style={s.logoutBtn} onPress={logout}>
@@ -113,16 +114,16 @@ export default function DashboardScreen({ navigation }) {
 
       {/* Faturamento */}
       <View style={s.row}>
-        <StatCard label="Faturamento total" value={formatMoeda(stats.faturamentoTotal)} icon="💰" accent="green" big />
+        <StatCard label="Faturamento total" value={formatMoeda(stats.faturamentoTotal)} iconName="cash-outline"   accent="green" big />
         <View style={s.spacer} />
-        <StatCard label="Este mês"           value={formatMoeda(stats.faturamentoMes)}   icon="📆" accent="gold"  big />
+        <StatCard label="Este mês"           value={formatMoeda(stats.faturamentoMes)}   iconName="calendar-outline" accent="gold"  big />
       </View>
 
       {/* Stats menores */}
       <View style={s.row3}>
-        <StatCard label="Hoje"        value={stats.hoje}        icon="⏰" />
-        <StatCard label="Confirmados" value={stats.confirmados} icon="✅" />
-        <StatCard label="Finalizados" value={stats.finalizados} icon="🏆" />
+        <StatCard label="Hoje"        value={stats.hoje}        iconName="time-outline" />
+        <StatCard label="Confirmados" value={stats.confirmados} iconName="checkmark-circle-outline" />
+        <StatCard label="Finalizados" value={stats.finalizados} iconName="ribbon-outline" />
       </View>
 
       {/* Banner agendamento online */}
@@ -132,7 +133,7 @@ export default function DashboardScreen({ navigation }) {
         activeOpacity={0.8}
       >
         <View style={s.bannerLeft}>
-          <Text style={s.bannerEmoji}>💈</Text>
+          <Ionicons name="cut-outline" size={22} color={COLORS.green} />
         </View>
         <View style={s.bannerBody}>
           <Text style={s.bannerTitle}>Agendamentos sem dor de cabeça</Text>
@@ -150,7 +151,7 @@ export default function DashboardScreen({ navigation }) {
 
         {proximos.length === 0 ? (
           <View style={[CARD, s.emptyCard]}>
-            <Text style={s.emptyIcon}>📋</Text>
+            <Ionicons name="calendar-outline" size={40} color={COLORS.textDim} style={{ marginBottom: 12 }} />
             <Text style={s.emptyText}>Nenhum agendamento futuro</Text>
             <TouchableOpacity
               style={s.emptyBtn}
@@ -167,11 +168,12 @@ export default function DashboardScreen({ navigation }) {
   )
 }
 
-function StatCard({ label, value, icon, accent, big }) {
-  const valueColor = accent === 'green' ? COLORS.greenLight : accent === 'gold' ? COLORS.goldLight : COLORS.white
+function StatCard({ label, value, iconName, accent, big }) {
+  const valueColor  = accent === 'green' ? COLORS.greenLight : accent === 'gold' ? COLORS.goldLight : COLORS.white
+  const iconColor   = accent === 'green' ? COLORS.green : accent === 'gold' ? COLORS.gold : COLORS.textMuted
   return (
     <View style={[CARD, s.statCard, big && s.statCardBig]}>
-      <Text style={s.statIcon}>{icon}</Text>
+      <Ionicons name={iconName} size={20} color={iconColor} style={{ marginBottom: 6 }} />
       <Text style={[s.statValue, { color: valueColor }, big && s.statValueBig]}>{value}</Text>
       <Text style={s.statLabel}>{label}</Text>
     </View>
@@ -228,7 +230,6 @@ const s = StyleSheet.create({
 
   statCard:     { flex: 1, paddingVertical: 16 },
   statCardBig:  { paddingVertical: 20 },
-  statIcon:     { fontSize: 20, marginBottom: 6 },
   statValue:    { fontSize: 18, fontWeight: '800', letterSpacing: 0.5 },
   statValueBig: { fontSize: 16 },
   statLabel:    { color: COLORS.textMuted, fontSize: 11, marginTop: 2 },
@@ -239,7 +240,6 @@ const s = StyleSheet.create({
   sectionCount:  { color: COLORS.textMuted, fontSize: 12 },
 
   emptyCard:    { alignItems: 'center', paddingVertical: 40 },
-  emptyIcon:    { fontSize: 36, marginBottom: 12 },
   emptyText:    { color: COLORS.textMuted, fontSize: 13 },
   emptyBtn: {
     marginTop: 16,
@@ -264,7 +264,6 @@ const s = StyleSheet.create({
     gap: 12,
   },
   bannerLeft:  { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(34,197,94,0.12)', alignItems: 'center', justifyContent: 'center' },
-  bannerEmoji: { fontSize: 22 },
   bannerBody:  { flex: 1 },
   bannerTitle: { color: COLORS.greenLight, fontSize: 13, fontWeight: '700' },
   bannerSub:   { color: COLORS.textMuted, fontSize: 11, marginTop: 2 },

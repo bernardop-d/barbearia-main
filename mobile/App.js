@@ -7,8 +7,7 @@ import { registrarPushToken } from './src/services/notifications'
 import { NavigationContainer } from '@react-navigation/native'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
-import { Text } from 'react-native'
-
+import { Ionicons } from '@expo/vector-icons'
 import { AuthProvider, useAuth } from './src/context/AuthContext'
 import { COLORS } from './src/theme'
 
@@ -62,9 +61,9 @@ function AdminTabs() {
         tabBarActiveTintColor: COLORS.green,
         tabBarInactiveTintColor: COLORS.textMuted,
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600', marginBottom: 2 },
-        tabBarIcon: ({ size }) => {
-          const icons = { Dashboard: '📊', Agenda: '📅', Novo: '➕' }
-          return <Text style={{ fontSize: size - 4 }}>{icons[route.name]}</Text>
+        tabBarIcon: ({ size, color }) => {
+          const icons = { Dashboard: 'speedometer-outline', Agenda: 'calendar-outline', Novo: 'add-circle-outline' }
+          return <Ionicons name={icons[route.name]} size={size} color={color} />
         },
       })}
     >
@@ -124,9 +123,9 @@ function RootNavigator() {
           tabBarActiveTintColor: COLORS.green,
           tabBarInactiveTintColor: COLORS.textMuted,
           tabBarLabelStyle: { fontSize: 11, fontWeight: '600', marginBottom: 2 },
-          tabBarIcon: ({ size }) => {
-            const icons = { Admin: '🔧', Agendar: '💈' }
-            return <Text style={{ fontSize: size - 4 }}>{icons[route.name]}</Text>
+          tabBarIcon: ({ size, color }) => {
+            const icons = { Admin: 'settings-outline', Agendar: 'cut-outline' }
+            return <Ionicons name={icons[route.name]} size={size} color={color} />
           },
         })}
       >
@@ -146,14 +145,14 @@ function RootNavigator() {
         tabBarActiveTintColor: COLORS.green,
         tabBarInactiveTintColor: COLORS.textMuted,
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600', marginBottom: 2 },
-        tabBarIcon: ({ size }) => {
-          const icons = { Agendar: '💈', Entrar: '🔐' }
-          return <Text style={{ fontSize: size - 4 }}>{icons[route.name]}</Text>
+        tabBarIcon: ({ size, color }) => {
+          const icons = { Agendar: 'cut-outline', Entrar: 'lock-closed-outline' }
+          return <Ionicons name={icons[route.name]} size={size} color={color} />
         },
       })}
     >
       <Tab.Screen name="Agendar" component={BookingStack} options={{ title: 'Agendar' }} />
-      <Tab.Screen name="Entrar"  component={LoginScreen}  options={{ title: 'Admin', headerShown: true, headerTitle: 'BarberPro' }} />
+      <Tab.Screen name="Entrar"  component={LoginScreen}  options={{ title: 'Admin', headerShown: true, headerTitle: 'DUNGABARBER' }} />
     </Tab.Navigator>
   )
 }
@@ -163,7 +162,7 @@ function UpdateModal({ visible, onUpdate, onDismiss }) {
     <Modal transparent visible={visible} animationType="fade">
       <View style={s.overlay}>
         <View style={s.updateCard}>
-          <RNText style={s.updateIcon}>🆕</RNText>
+          <Ionicons name="refresh-circle-outline" size={48} color="#22c55e" style={{ marginBottom: 12 }} />
           <RNText style={s.updateTitle}>Atualização disponível</RNText>
           <RNText style={s.updateText}>Uma nova versão do DUNGABARBER está pronta. Deseja atualizar agora?</RNText>
           <TouchableOpacity style={s.updateBtn} onPress={onUpdate}>
@@ -239,7 +238,6 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: '#2A2A2A',
     padding: 28, alignItems: 'center', width: '100%',
   },
-  updateIcon:    { fontSize: 40, marginBottom: 12 },
   updateTitle:   { color: '#fff', fontSize: 18, fontWeight: '800', marginBottom: 8 },
   updateText:    { color: '#666', fontSize: 14, textAlign: 'center', marginBottom: 24, lineHeight: 20 },
   updateBtn: {

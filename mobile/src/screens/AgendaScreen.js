@@ -3,6 +3,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   TextInput, RefreshControl, ActivityIndicator, Alert, Linking,
 } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { COLORS, CARD, INPUT } from '../theme'
 import { getAgendamentos, atualizarStatus, atualizarAgendamento, removerAgendamento } from '../services/supabase'
 import { STATUS_LABEL } from '../constants'
@@ -67,12 +68,12 @@ export default function AgendaScreen({ navigation }) {
 
   async function handleStatus(id, status) {
     try { await atualizarStatus(id, status); await fetchData() }
-    catch (e) { console.error(e) }
+    catch (e) { Alert.alert('Erro', 'Não foi possível atualizar o status. Tente novamente.') }
   }
 
   async function handlePago(id, pago) {
     try { await atualizarAgendamento(id, { pago }); await fetchData() }
-    catch (e) { console.error(e) }
+    catch (e) { Alert.alert('Erro', 'Não foi possível atualizar o pagamento. Tente novamente.') }
   }
 
   function handleRemover(agendamento) {
@@ -146,7 +147,7 @@ export default function AgendaScreen({ navigation }) {
 
         {lista.length === 0 ? (
           <View style={[CARD, s.emptyCard]}>
-            <Text style={s.emptyIcon}>🗓️</Text>
+            <Ionicons name="calendar-outline" size={40} color={COLORS.textDim} style={{ marginBottom: 12 }} />
             <Text style={s.emptyText}>Nenhum agendamento encontrado</Text>
           </View>
         ) : (
@@ -189,7 +190,10 @@ function AgendamentoCard({ agendamento, expanded, onToggle, onStatus, onPago, on
             Linking.openURL(url)
           }}
         >
-          <Text style={s.alertText}>⏰ Falta menos de 1h — avisar cliente</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="time-outline" size={14} color={COLORS.orange} />
+              <Text style={s.alertText}>Falta menos de 1h — avisar cliente</Text>
+            </View>
         </TouchableOpacity>
       )}
 
@@ -239,7 +243,10 @@ function AgendamentoCard({ agendamento, expanded, onToggle, onStatus, onPago, on
 
           <View style={s.actionRow}>
             <TouchableOpacity style={[s.actionBtn, s.actionWa]} onPress={() => onWhatsApp(agendamento)}>
-              <Text style={[s.actionBtnText, { color: '#4ade80' }]}>💬 WhatsApp</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Ionicons name="logo-whatsapp" size={14} color="#4ade80" />
+                <Text style={[s.actionBtnText, { color: '#4ade80' }]}>WhatsApp</Text>
+              </View>
             </TouchableOpacity>
             <TouchableOpacity style={[s.actionBtn, s.actionGhost]} onPress={onEditar}>
               <Text style={[s.actionBtnText, { color: COLORS.white }]}>Editar</Text>
@@ -277,7 +284,6 @@ const s = StyleSheet.create({
   filtroText:       { color: COLORS.textMuted, fontSize: 12, fontWeight: '600' },
   filtroTextActive: { color: COLORS.green },
   emptyCard:  { alignItems: 'center', paddingVertical: 48 },
-  emptyIcon:  { fontSize: 36, marginBottom: 12 },
   emptyText:  { color: COLORS.textMuted, fontSize: 13 },
   card:       { marginBottom: 8 },
   cardAlert:  { borderColor: 'rgba(249,115,22,0.4)' },
