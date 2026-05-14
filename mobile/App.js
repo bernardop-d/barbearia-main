@@ -107,25 +107,10 @@ function RootNavigator() {
 
   if (user) return <AdminRoot />
 
-  // Guest: Agendar + Login
   return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        ...SCREEN_OPTIONS,
-        headerShown: false,
-        tabBarStyle: TAB_BAR_STYLE,
-        tabBarActiveTintColor: COLORS.green,
-        tabBarInactiveTintColor: '#444',
-        tabBarLabelStyle: { fontSize: 9, fontWeight: '500', letterSpacing: 0.6, textTransform: 'uppercase' },
-        tabBarIcon: ({ size, color }) => {
-          const icons = { Agendar: 'cut-outline', Entrar: 'lock-closed-outline' }
-          return <Ionicons name={icons[route.name]} size={size} color={color} />
-        },
-      })}
-    >
-      <Tab.Screen name="Agendar" component={BookingStack} options={{ title: 'Agendar' }} />
-      <Tab.Screen name="Entrar"  component={LoginScreen}  options={{ title: 'Admin', headerShown: true, headerTitle: 'DUNGABARBER' }} />
-    </Tab.Navigator>
+    <Stack.Navigator screenOptions={{ ...SCREEN_OPTIONS, headerShown: false }}>
+      <Stack.Screen name="Login" component={LoginScreen} />
+    </Stack.Navigator>
   )
 }
 
