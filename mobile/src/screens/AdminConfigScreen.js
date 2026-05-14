@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import {
   View, Text, ScrollView, Switch, StyleSheet, TouchableOpacity,
-  Modal, TextInput, Alert, ActivityIndicator, FlatList,
+  Modal, TextInput, Alert, ActivityIndicator,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { COLORS, CARD, LABEL, INPUT, BTN_PRIMARY, BTN_GHOST } from '../theme'

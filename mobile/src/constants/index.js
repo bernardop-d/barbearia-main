@@ -9,9 +9,9 @@ export const SERVICOS = [
 ]
 
 export const STATUS_LABEL = {
-  confirmado: { label: 'Confirmado', color: '#4ade80',  bg: 'rgba(34,197,94,0.15)',  border: 'rgba(34,197,94,0.4)' },
-  finalizado: { label: 'Finalizado', color: '#fbbf24',  bg: 'rgba(217,119,6,0.15)',  border: 'rgba(217,119,6,0.4)' },
-  cancelado:  { label: 'Cancelado',  color: '#f87171',  bg: 'rgba(239,68,68,0.15)',  border: 'rgba(239,68,68,0.4)' },
+  confirmado: { label: 'Confirmado', color: '#00e87a',  bg: 'rgba(0,232,122,0.12)',   border: 'rgba(0,232,122,0.27)' },
+  finalizado: { label: 'Finalizado', color: '#fbbf24',  bg: 'rgba(217,119,6,0.15)',   border: 'rgba(217,119,6,0.4)' },
+  cancelado:  { label: 'Cancelado',  color: '#f87171',  bg: 'rgba(239,68,68,0.15)',   border: 'rgba(239,68,68,0.4)' },
   pendente:   { label: 'Pendente',   color: '#94a3b8',  bg: 'rgba(148,163,184,0.15)', border: 'rgba(148,163,184,0.4)' },
 }
 

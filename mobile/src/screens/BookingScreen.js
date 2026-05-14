@@ -6,18 +6,12 @@ import {
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { Ionicons } from '@expo/vector-icons'
 import { COLORS, INPUT, BTN_PRIMARY, LABEL } from '../theme'
-import { criarAgendamentoPublico, buscarHorariosOcupados, buscarDiasBloqueados, buscarConfig } from '../services/supabase'
-import { HORARIOS } from '../constants'
+import {
+  criarAgendamentoPublico, buscarHorariosOcupados, buscarDiasBloqueados,
+  buscarConfig, getServicosCustom,
+} from '../services/supabase'
+import { SERVICOS as SERVICOS_BASE, HORARIOS } from '../constants'
 import { validarAgendamento, hojeISO } from '../utils/validar'
-
-const SERVICOS = [
-  { id: 'corte',       label: 'Corte Normal',   preco: 35,  icon: 'cut-outline',          desc: 'Corte tradicional' },
-  { id: 'combo',       label: 'Cabelo + Barba', preco: 55,  icon: 'color-wand-outline',   desc: 'Corte + barba completa' },
-  { id: 'platinado',   label: 'Platinado',      preco: 60,  icon: 'flash-outline',        desc: 'Descoloração' },
-  { id: 'tinta',       label: 'Tinta Preta',    preco: 15,  icon: 'brush-outline',        desc: 'Adicional de tinta' },
-  { id: 'mensal',      label: 'Plano Mensal',   preco: 80,  icon: 'calendar-outline',     desc: 'Corte mensal' },
-  { id: 'mensaltinta', label: 'Mensal + Tinta', preco: 100, icon: 'star-outline',         desc: 'Corte mensal + tinta' },
-]
 
 function formatDataExibicao(dateStr) {
   if (!dateStr) return ''
@@ -30,21 +24,32 @@ function formatMoeda(v) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
 }
 
+const BASE = SERVICOS_BASE.filter(sv => sv.preco > 0)
+
 export default function BookingScreen({ navigation }) {
-  const [servico, setServico]               = useState(SERVICOS[0])
-  const [form, setForm]                     = useState({ nome: '', whatsapp: '', data: hojeISO() })
+  const [allServicos, setAllServicos]         = useState(BASE)
+  const [servico, setServico]                 = useState(BASE[0])
+  const [form, setForm]                       = useState({ nome: '', whatsapp: '', data: hojeISO() })
   const [horaSelecionada, setHoraSelecionada] = useState(null)
-  const [horasOcupadas, setHorasOcupadas]   = useState([])
-  const [diasBloqueados, setDiasBloqueados] = useState([])
-  const [almocoConfig, setAlmocoConfig]     = useState(null)
-  const [loadingSlots, setLoadingSlots]     = useState(false)
-  const [loading, setLoading]               = useState(false)
-  const [error, setError]                   = useState('')
-  const [showDatePicker, setShowDatePicker] = useState(false)
+  const [horasOcupadas, setHorasOcupadas]     = useState([])
+  const [diasBloqueados, setDiasBloqueados]   = useState([])
+  const [almocoConfig, setAlmocoConfig]       = useState(null)
+  const [loadingSlots, setLoadingSlots]       = useState(false)
+  const [loading, setLoading]                 = useState(false)
+  const [error, setError]                     = useState('')
+  const [showDatePicker, setShowDatePicker]   = useState(false)
 
   useEffect(() => {
     buscarDiasBloqueados().then(setDiasBloqueados)
     buscarConfig('almoco').then(setAlmocoConfig)
+    getServicosCustom().then(custom => {
+      if (custom.length > 0) {
+        setAllServicos([
+          ...BASE,
+          ...custom.map(sv => ({ id: sv.id, label: sv.label, preco: sv.preco, icon: 'add-circle-outline', desc: sv.desc || '' })),
+        ])
+      }
+    })
   }, [])
 
   useEffect(() => {
@@ -113,8 +118,8 @@ export default function BookingScreen({ navigation }) {
         {/* Serviço */}
         <View style={s.section}>
           <Text style={LABEL}>Serviço</Text>
-          {SERVICOS.map(sv => {
-            const ativo = servico.id === sv.id
+          {allServicos.map(sv => {
+            const ativo = servico?.id === sv.id
             return (
               <TouchableOpacity
                 key={sv.id}
@@ -227,7 +232,7 @@ export default function BookingScreen({ navigation }) {
         {/* WhatsApp */}
         <View style={s.section}>
           <Text style={[LABEL, { marginBottom: 4 }]}>
-            WhatsApp <Text style={s.optional}>(opcional)</Text>
+            WhatsApp <Text style={s.optional}>(opcional — para ver seus horários depois)</Text>
           </Text>
           <TextInput
             style={INPUT}

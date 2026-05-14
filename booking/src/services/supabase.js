@@ -27,7 +27,29 @@ export async function getAgendamentos() {
     .from('agendamentos')
     .select('*')
     .order('data', { ascending: false })
+    .limit(300)
   if (error) throw error
+  return data || []
+}
+
+export async function buscarMeusAgendamentos(whatsapp) {
+  const { data, error } = await supabase
+    .from('agendamentos')
+    .select('id, nome, servico, data, preco, status')
+    .eq('whatsapp', whatsapp)
+    .order('data', { ascending: false })
+    .limit(20)
+  if (error) return []
+  return data || []
+}
+
+export async function getServicosCustom() {
+  const { data, error } = await supabase
+    .from('servicos')
+    .select('id, label, desc, preco')
+    .eq('ativo', true)
+    .order('created_at', { ascending: true })
+  if (error) return []
   return data || []
 }
 

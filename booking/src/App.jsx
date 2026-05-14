@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo } from 'react'
 import {
   supabase, criarAgendamentoPublico, buscarHorariosOcupados,
-  buscarDiasBloqueados, buscarConfig, getAgendamentos,
+  buscarDiasBloqueados, buscarConfig, getServicosCustom,
+  buscarMeusAgendamentos, getAgendamentos,
   atualizarStatus, removerAgendamento, login, logout,
 } from './services/supabase'
 
-const SERVICOS = [
+const SERVICOS_BASE = [
   { id: 'corte',       label: 'Corte Normal',   preco: 35,  desc: 'Corte tradicional' },
   { id: 'combo',       label: 'Cabelo + Barba', preco: 55,  desc: 'Corte + barba completa' },
   { id: 'platinado',   label: 'Platinado',      preco: 60,  desc: 'Descoloração completa' },
@@ -45,9 +46,13 @@ function validar(form, horaSelecionada) {
   return null
 }
 
+// ─── Root ─────────────────────────────────────────────────────────────────────
 export default function App() {
+  const [view, setView] = useState('booking') // 'booking' | 'meushorarios' | 'admin'
+
   const [step,            setStep]            = useState(1)
-  const [servico,         setServico]         = useState(null)
+  const [allServicos,     setAllServicos]     = useState(SERVICOS_BASE)
+  const [servico,         setServico]         = useState(SERVICOS_BASE[0])
   const [form,            setForm]            = useState({ nome: '', whatsapp: '', data: hojeISO() })
   const [horaSelecionada, setHoraSelecionada] = useState(null)
   const [horasOcupadas,   setHorasOcupadas]   = useState([])
@@ -57,15 +62,19 @@ export default function App() {
   const [loading,         setLoading]         = useState(false)
   const [error,           setError]           = useState('')
   const [resultado,       setResultado]       = useState(null)
-
-  // Admin
-  const [adminOpen, setAdminOpen] = useState(false)
-  const [adminUser, setAdminUser] = useState(null)
+  const [adminUser,       setAdminUser]       = useState(null)
 
   useEffect(() => {
     buscarDiasBloqueados().then(setDiasBloqueados)
     buscarConfig('almoco').then(setAlmocoConfig)
-
+    getServicosCustom().then(custom => {
+      if (custom.length > 0) {
+        setAllServicos([
+          ...SERVICOS_BASE,
+          ...custom.map(sv => ({ id: sv.id, label: sv.label, preco: sv.preco, desc: sv.desc || '' })),
+        ])
+      }
+    })
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) setAdminUser(session.user)
     })
@@ -125,23 +134,29 @@ export default function App() {
   }
 
   function resetar() {
-    setStep(1); setServico(null)
+    setStep(1); setServico(allServicos[0])
     setForm({ nome: '', whatsapp: '', data: hojeISO() })
     setHoraSelecionada(null); setResultado(null); setError('')
   }
 
-  if (adminOpen) {
+  // ─── Views ─────────────────────────────────────────────────────────────────
+  if (view === 'meushorarios') {
+    return <MeusAgendamentos onClose={() => setView('booking')} />
+  }
+
+  if (view === 'admin') {
     return (
       <AdminSection
         user={adminUser}
         onLogout={async () => { await logout(); setAdminUser(null) }}
-        onClose={() => setAdminOpen(false)}
+        onClose={() => setView('booking')}
       />
     )
   }
 
-  if (step === 'success') return <SuccessScreen resultado={resultado} onNovo={resetar} />
+  if (step === 'success') return <SuccessScreen resultado={resultado} onNovo={resetar} onMeusHorarios={() => setView('meushorarios')} />
 
+  // ─── Public booking ─────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-ink text-white">
       {/* Hero */}
@@ -155,7 +170,12 @@ export default function App() {
           </div>
           <h1 className="font-display text-5xl tracking-widest text-white leading-none mb-1">DUNGABARBER</h1>
           <p className="text-blade-400 text-sm font-medium tracking-wider uppercase mb-1">Agendamento online</p>
-          <p className="text-ink-400 text-xs">Marque seu horário em menos de 1 minuto</p>
+          <button
+            onClick={() => setView('meushorarios')}
+            className="text-ink-400 text-xs hover:text-blade-400 transition-colors"
+          >
+            Ver meus agendamentos →
+          </button>
         </div>
       </div>
 
@@ -187,7 +207,7 @@ export default function App() {
             <h2 className="text-xl font-bold text-white mb-1">Qual serviço?</h2>
             <p className="text-ink-400 text-sm mb-5">Escolha o que você precisa</p>
             <div className="flex flex-col gap-3">
-              {SERVICOS.map(s => (
+              {allServicos.map(s => (
                 <button
                   key={s.id}
                   type="button"
@@ -301,7 +321,7 @@ export default function App() {
             </div>
 
             <h2 className="text-xl font-bold text-white mb-1">Seus dados</h2>
-            <p className="text-ink-400 text-sm mb-5">Quase lá! Só precisamos do seu nome</p>
+            <p className="text-ink-400 text-sm mb-5">Quase lá! Informe o WhatsApp para consultar seus horários depois</p>
 
             <div className="flex flex-col gap-4">
               <div>
@@ -317,7 +337,7 @@ export default function App() {
               </div>
               <div>
                 <label className="block text-xs text-ink-400 font-medium mb-2 uppercase tracking-wider">
-                  WhatsApp <span className="normal-case text-ink-500 font-normal">(opcional)</span>
+                  WhatsApp <span className="normal-case text-ink-500 font-normal">(para ver seus horários)</span>
                 </label>
                 <input
                   type="tel"
@@ -356,10 +376,143 @@ export default function App() {
 
       <p className="text-center text-ink-600 text-xs pb-6">
         DUNGABARBER © {new Date().getFullYear()} ·{' '}
-        <button onClick={() => setAdminOpen(true)} className="hover:text-ink-400 transition-colors">
-          Admin
-        </button>
+        <button onClick={() => setView('admin')} className="hover:text-ink-400 transition-colors">Admin</button>
       </p>
+    </div>
+  )
+}
+
+// ─── Meus Agendamentos (cliente) ──────────────────────────────────────────────
+function MeusAgendamentos({ onClose }) {
+  const [tel,          setTel]          = useState('')
+  const [agendamentos, setAgendamentos] = useState([])
+  const [loading,      setLoading]      = useState(false)
+  const [buscado,      setBuscado]      = useState(false)
+  const [error,        setError]        = useState('')
+
+  async function buscar(e) {
+    e.preventDefault()
+    const digits = tel.replace(/\D/g, '')
+    if (digits.length < 10) { setError('Informe um WhatsApp válido.'); return }
+    setError('')
+    setLoading(true)
+    try {
+      const data = await buscarMeusAgendamentos(digits)
+      setAgendamentos(data)
+      setBuscado(true)
+    } catch {
+      setError('Erro ao buscar. Tente novamente.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const statusCfg = {
+    confirmado: { label: 'Confirmado', cls: 'bg-blade-500/10 border-blade-500/30 text-blade-400' },
+    finalizado: { label: 'Finalizado', cls: 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400' },
+    cancelado:  { label: 'Cancelado',  cls: 'bg-red-500/10 border-red-500/30 text-red-400' },
+  }
+
+  return (
+    <div className="min-h-screen bg-ink text-white">
+      <div className="bg-ink-800 border-b border-ink-700 px-6 py-4">
+        <div className="max-w-sm mx-auto flex items-center justify-between">
+          <div>
+            <h1 className="font-display text-2xl tracking-widest">DUNGABARBER</h1>
+            <p className="text-ink-400 text-xs">Meus agendamentos</p>
+          </div>
+          <button onClick={onClose} className="text-ink-400 text-sm hover:text-white transition-colors">← Voltar</button>
+        </div>
+      </div>
+
+      <div className="max-w-sm mx-auto px-6 py-8">
+        <p className="text-ink-400 text-sm mb-6">
+          Informe o WhatsApp que você usou ao agendar para ver seus horários.
+        </p>
+
+        <form onSubmit={buscar} className="flex flex-col gap-4 mb-8">
+          <div>
+            <label className="block text-xs text-ink-400 font-medium mb-2 uppercase tracking-wider">Seu WhatsApp</label>
+            <input
+              type="tel"
+              className="input"
+              placeholder="(11) 99999-9999"
+              value={tel}
+              autoFocus
+              onChange={e => {
+                const digits = e.target.value.replace(/\D/g, '').slice(0, 11)
+                let masked = digits
+                if (digits.length > 2)  masked = `(${digits.slice(0,2)}) ${digits.slice(2)}`
+                if (digits.length > 7)  masked = `(${digits.slice(0,2)}) ${digits.slice(2,7)}-${digits.slice(7)}`
+                if (digits.length > 10) masked = `(${digits.slice(0,2)}) ${digits.slice(2,7)}-${digits.slice(7,11)}`
+                setTel(masked)
+              }}
+            />
+          </div>
+
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-red-400 text-sm">
+              {error}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            className="btn-primary"
+            disabled={loading || tel.replace(/\D/g, '').length < 10}
+          >
+            {loading
+              ? <span className="flex items-center justify-center gap-2"><Spinner /> Buscando...</span>
+              : 'Ver meus agendamentos'}
+          </button>
+        </form>
+
+        {buscado && (
+          agendamentos.length === 0 ? (
+            <div className="card text-center py-10">
+              <p className="text-ink-400 text-sm">Nenhum agendamento encontrado para este número.</p>
+              <p className="text-ink-500 text-xs mt-2">Verifique se o número está correto.</p>
+            </div>
+          ) : (
+            <div>
+              <p className="text-ink-400 text-xs mb-4 uppercase tracking-wider">{agendamentos.length} agendamento(s) encontrado(s)</p>
+              <div className="flex flex-col gap-3">
+                {agendamentos.map(a => {
+                  const st = statusCfg[a.status] || statusCfg.confirmado
+                  const data = new Date(a.data)
+                  const futuro = data > new Date() && a.status === 'confirmado'
+                  return (
+                    <div key={a.id} className={`card ${futuro ? 'border-blade-500/20' : ''}`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1">
+                          <p className="text-white font-semibold">{a.servico}</p>
+                          <p className="text-ink-400 text-sm mt-1">
+                            {data.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }).replace(/^./, s => s.toUpperCase())}
+                          </p>
+                          <p className="text-ink-400 text-sm">
+                            às {data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-blade-400 font-mono font-bold text-sm">{formatarMoeda(a.preco)}</p>
+                          <span className={`inline-block mt-2 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${st.cls}`}>
+                            {st.label}
+                          </span>
+                        </div>
+                      </div>
+                      {futuro && (
+                        <p className="text-ink-500 text-xs mt-3 pt-3 border-t border-ink-700">
+                          Para cancelar, entre em contato com a barbearia.
+                        </p>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        )}
+      </div>
     </div>
   )
 }
@@ -385,7 +538,7 @@ function AdminLogin({ onClose }) {
     setError(''); setLoading(true)
     try {
       await login(email, password)
-    } catch (err) {
+    } catch {
       setError('Email ou senha incorretos.')
     } finally {
       setLoading(false)
@@ -406,46 +559,28 @@ function AdminLogin({ onClose }) {
         <form onSubmit={handleLogin} className="flex flex-col gap-4">
           <div>
             <label className="block text-xs text-ink-400 font-medium mb-2 uppercase tracking-wider">Email</label>
-            <input
-              type="email"
-              className="input"
-              placeholder="admin@email.com"
-              value={email}
-              autoFocus
-              onChange={e => setEmail(e.target.value)}
-            />
+            <input type="email" className="input" placeholder="admin@email.com" value={email} autoFocus onChange={e => setEmail(e.target.value)} />
           </div>
           <div>
             <label className="block text-xs text-ink-400 font-medium mb-2 uppercase tracking-wider">Senha</label>
-            <input
-              type="password"
-              className="input"
-              placeholder="••••••••"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-            />
+            <input type="password" className="input" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
           </div>
 
           {error && (
-            <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-red-400 text-sm">
-              {error}
-            </div>
+            <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-red-400 text-sm">{error}</div>
           )}
 
           <button type="submit" className="btn-primary" disabled={loading}>
             {loading ? <span className="flex items-center justify-center gap-2"><Spinner /> Entrando...</span> : 'Entrar'}
           </button>
-
-          <button type="button" onClick={onClose} className="text-ink-500 text-sm text-center hover:text-ink-300 transition-colors py-1">
-            ← Voltar ao site
-          </button>
+          <button type="button" onClick={onClose} className="text-ink-500 text-sm text-center hover:text-ink-300 transition-colors py-1">← Voltar ao site</button>
         </form>
       </div>
     </div>
   )
 }
 
-const STATUS_CONFIG = {
+const STATUS_CFG = {
   confirmado: { label: 'Confirmado', bg: 'bg-blade-500/10', border: 'border-blade-500/30', text: 'text-blade-400' },
   finalizado: { label: 'Finalizado', bg: 'bg-yellow-500/10', border: 'border-yellow-500/30', text: 'text-yellow-400' },
   cancelado:  { label: 'Cancelado',  bg: 'bg-red-500/10',    border: 'border-red-500/30',    text: 'text-red-400' },
@@ -454,16 +589,17 @@ const STATUS_CONFIG = {
 function AdminPanel({ user, onLogout, onClose }) {
   const [agendamentos, setAgendamentos] = useState([])
   const [loading,      setLoading]      = useState(true)
+  const [error,        setError]        = useState('')
   const [filtro,       setFiltro]       = useState('todos')
   const [busca,        setBusca]        = useState('')
 
   async function fetchData() {
     try {
-      setLoading(true)
+      setError('')
       const data = await getAgendamentos()
       setAgendamentos(data)
-    } catch (e) {
-      console.error(e)
+    } catch {
+      setError('Erro ao carregar agendamentos. Verifique sua conexão.')
     } finally {
       setLoading(false)
     }
@@ -494,20 +630,28 @@ function AdminPanel({ user, onLogout, onClose }) {
     return { hoje, confirmados, receitaHoje }
   }, [agendamentos])
 
-  async function handleStatus(id, status) {
-    try { await atualizarStatus(id, status); await fetchData() }
-    catch (e) { console.error(e) }
+  async function handleStatus(id, status, label) {
+    if (!window.confirm(`Confirma: ${label} este agendamento?`)) return
+    try {
+      await atualizarStatus(id, status)
+      await fetchData()
+    } catch {
+      setError(`Erro ao ${label.toLowerCase()} agendamento.`)
+    }
   }
 
   async function handleRemover(id, nome) {
-    if (!window.confirm(`Remover o agendamento de ${nome}?`)) return
-    try { await removerAgendamento(id); await fetchData() }
-    catch (e) { console.error(e) }
+    if (!window.confirm(`Remover o agendamento de ${nome}? Esta ação não pode ser desfeita.`)) return
+    try {
+      await removerAgendamento(id)
+      await fetchData()
+    } catch {
+      setError('Erro ao remover agendamento.')
+    }
   }
 
   return (
     <div className="min-h-screen bg-ink text-white">
-      {/* Header */}
       <div className="bg-ink-800 border-b border-ink-700 px-6 py-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div>
@@ -515,16 +659,10 @@ function AdminPanel({ user, onLogout, onClose }) {
             <p className="text-ink-400 text-xs">Área administrativa · {user.email}</p>
           </div>
           <div className="flex items-center gap-3">
-            <button
-              onClick={onClose}
-              className="text-ink-400 text-sm hover:text-white transition-colors px-3 py-1.5 rounded-lg border border-ink-700 hover:border-ink-600"
-            >
+            <button onClick={onClose} className="text-ink-400 text-sm hover:text-white transition-colors px-3 py-1.5 rounded-lg border border-ink-700 hover:border-ink-600">
               Site público
             </button>
-            <button
-              onClick={onLogout}
-              className="text-ink-400 text-sm hover:text-white transition-colors px-3 py-1.5 rounded-lg border border-ink-700 hover:border-ink-600"
-            >
+            <button onClick={onLogout} className="text-ink-400 text-sm hover:text-white transition-colors px-3 py-1.5 rounded-lg border border-ink-700 hover:border-ink-600">
               Sair
             </button>
           </div>
@@ -532,7 +670,12 @@ function AdminPanel({ user, onLogout, onClose }) {
       </div>
 
       <div className="max-w-4xl mx-auto px-6 py-6">
-        {/* Stats */}
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-red-400 text-sm mb-4" role="alert">
+            {error}
+          </div>
+        )}
+
         <div className="grid grid-cols-3 gap-4 mb-6">
           <div className="card text-center">
             <p className="text-2xl font-bold text-white">{stats.hoje}</p>
@@ -543,12 +686,11 @@ function AdminPanel({ user, onLogout, onClose }) {
             <p className="text-ink-400 text-xs uppercase tracking-wider mt-1">Confirmados</p>
           </div>
           <div className="card text-center">
-            <p className="text-2xl font-bold text-yellow-400">{formatarMoeda(stats.receitaHoje)}</p>
+            <p className="text-lg font-bold text-yellow-400">{formatarMoeda(stats.receitaHoje)}</p>
             <p className="text-ink-400 text-xs uppercase tracking-wider mt-1">Receita hoje</p>
           </div>
         </div>
 
-        {/* Busca */}
         <div className="relative mb-4">
           <input
             type="text"
@@ -562,10 +704,9 @@ function AdminPanel({ user, onLogout, onClose }) {
           </svg>
         </div>
 
-        {/* Filtros */}
         <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
           {[
-            { id: 'todos',      label: 'Todos' },
+            { id: 'todos', label: 'Todos' },
             { id: 'confirmado', label: 'Confirmados' },
             { id: 'finalizado', label: 'Finalizados' },
             { id: 'cancelado',  label: 'Cancelados' },
@@ -574,17 +715,13 @@ function AdminPanel({ user, onLogout, onClose }) {
               key={f.id}
               onClick={() => setFiltro(f.id)}
               className={`px-4 py-1.5 rounded-full text-xs font-semibold border transition-all whitespace-nowrap
-                ${filtro === f.id
-                  ? 'bg-blade-500/10 border-blade-500/30 text-blade-400'
-                  : 'bg-ink-800 border-ink-700 text-ink-400 hover:border-ink-600'
-                }`}
+                ${filtro === f.id ? 'bg-blade-500/10 border-blade-500/30 text-blade-400' : 'bg-ink-800 border-ink-700 text-ink-400 hover:border-ink-600'}`}
             >
               {f.label}
             </button>
           ))}
         </div>
 
-        {/* Lista */}
         {loading ? (
           <div className="flex items-center justify-center py-20 text-ink-500 gap-3">
             <Spinner /> Carregando agendamentos...
@@ -612,7 +749,7 @@ function AdminPanel({ user, onLogout, onClose }) {
 
 function AdminCard({ agendamento, onStatus, onRemover }) {
   const [open, setOpen] = useState(false)
-  const st = STATUS_CONFIG[agendamento.status] || STATUS_CONFIG.confirmado
+  const st   = STATUS_CFG[agendamento.status] || STATUS_CFG.confirmado
   const data = new Date(agendamento.data)
 
   return (
@@ -637,7 +774,7 @@ function AdminCard({ agendamento, onStatus, onRemover }) {
             {st.label}
           </span>
         </div>
-        <span className={`text-ink-500 transition-transform ${open ? 'rotate-90' : ''}`}>›</span>
+        <span className={`text-ink-500 text-lg transition-transform ${open ? 'rotate-90' : ''}`}>›</span>
       </button>
 
       {open && (
@@ -645,13 +782,13 @@ function AdminCard({ agendamento, onStatus, onRemover }) {
           {agendamento.status === 'confirmado' && (
             <>
               <button
-                onClick={() => onStatus(agendamento.id, 'finalizado')}
+                onClick={() => onStatus(agendamento.id, 'finalizado', 'Finalizar')}
                 className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/20 transition-colors"
               >
                 Finalizar
               </button>
               <button
-                onClick={() => onStatus(agendamento.id, 'cancelado')}
+                onClick={() => onStatus(agendamento.id, 'cancelado', 'Cancelar')}
                 className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-colors"
               >
                 Cancelar
@@ -660,7 +797,7 @@ function AdminCard({ agendamento, onStatus, onRemover }) {
           )}
           {agendamento.status === 'cancelado' && (
             <button
-              onClick={() => onStatus(agendamento.id, 'confirmado')}
+              onClick={() => onStatus(agendamento.id, 'confirmado', 'Reativar')}
               className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blade-500/10 border border-blade-500/30 text-blade-400 hover:bg-blade-500/20 transition-colors"
             >
               Reativar
@@ -689,7 +826,7 @@ function AdminCard({ agendamento, onStatus, onRemover }) {
 }
 
 // ─── Success screen ───────────────────────────────────────────────────────────
-function SuccessScreen({ resultado, onNovo }) {
+function SuccessScreen({ resultado, onNovo, onMeusHorarios }) {
   const data = new Date(resultado.data)
   return (
     <div className="min-h-screen bg-ink flex flex-col">
@@ -718,7 +855,15 @@ function SuccessScreen({ resultado, onNovo }) {
           <div className="bg-ink-800 border border-ink-700 rounded-xl px-4 py-3 mb-6 text-center">
             <p className="text-ink-400 text-xs">Apareça no horário marcado. Em caso de imprevisto, avise com antecedência.</p>
           </div>
-          <button onClick={onNovo} className="btn-primary">Fazer outro agendamento</button>
+          <button onClick={onNovo} className="btn-primary mb-3">Fazer outro agendamento</button>
+          {resultado.whatsapp && (
+            <button
+              onClick={onMeusHorarios}
+              className="w-full py-3 rounded-xl border border-ink-700 text-ink-400 text-sm font-medium hover:border-ink-600 hover:text-white transition-colors"
+            >
+              Ver meus agendamentos
+            </button>
+          )}
         </div>
       </div>
       <p className="text-center text-ink-600 text-xs pb-6">DUNGABARBER © {new Date().getFullYear()}</p>
@@ -726,6 +871,7 @@ function SuccessScreen({ resultado, onNovo }) {
   )
 }
 
+// ─── Shared components ────────────────────────────────────────────────────────
 function Row({ label, value }) {
   return (
     <div className="flex items-center justify-between gap-4">
