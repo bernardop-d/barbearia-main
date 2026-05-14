@@ -33,4 +33,6 @@ jobs:
 
       - name: Publish update
         working-directory: ./mobile
-        run: eas update --branch production --message "${{ github.event.head_commit.message }}" --non-interactive
+        run: |
+          MSG="${{ github.event.head_commit.message }}"
+          eas update --branch production --message "${MSG:-OTA update}" --non-interactive
