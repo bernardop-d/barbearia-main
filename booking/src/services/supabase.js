@@ -10,8 +10,53 @@ const PRECOS_VALIDOS = {
   'Tinta Preta': 15, 'Plano Mensal': 80, 'Mensal + Tinta': 100,
 }
 
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+export async function login(email, password) {
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+  if (error) throw error
+  return data
+}
+
+export async function logout() {
+  await supabase.auth.signOut()
+}
+
+// ─── Admin ────────────────────────────────────────────────────────────────────
+export async function getAgendamentos() {
+  const { data, error } = await supabase
+    .from('agendamentos')
+    .select('*')
+    .order('data', { ascending: false })
+  if (error) throw error
+  return data || []
+}
+
+export async function atualizarStatus(id, status) {
+  const { data, error } = await supabase
+    .from('agendamentos').update({ status }).eq('id', id).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function removerAgendamento(id) {
+  const { error } = await supabase.from('agendamentos').delete().eq('id', id)
+  if (error) throw error
+}
+
+// ─── Config ───────────────────────────────────────────────────────────────────
+export async function buscarConfig(key) {
+  const { data } = await supabase.from('config').select('value').eq('key', key).maybeSingle()
+  return data?.value ?? null
+}
+
+// ─── Public booking ───────────────────────────────────────────────────────────
 export async function criarAgendamentoPublico(agendamento) {
-  const preco = PRECOS_VALIDOS[agendamento.servico]
+  let preco = PRECOS_VALIDOS[agendamento.servico]
+  if (!preco) {
+    const { data: svc } = await supabase
+      .from('servicos').select('preco').eq('label', agendamento.servico).eq('ativo', true).maybeSingle()
+    if (svc) preco = svc.preco
+  }
   if (!preco) throw new Error('Serviço inválido.')
 
   if (new Date(agendamento.data) < new Date()) throw new Error('Data inválida.')
@@ -53,9 +98,7 @@ export async function criarAgendamentoPublico(agendamento) {
 }
 
 export async function buscarDiasBloqueados() {
-  const { data, error } = await supabase
-    .from('dias_bloqueados')
-    .select('data')
+  const { data, error } = await supabase.from('dias_bloqueados').select('data')
   if (error) return []
   return (data || []).map(r => r.data)
 }

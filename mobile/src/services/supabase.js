@@ -87,7 +87,12 @@ const PRECOS_VALIDOS = {
 }
 
 export async function criarAgendamentoPublico(agendamento) {
-  const preco = PRECOS_VALIDOS[agendamento.servico]
+  let preco = PRECOS_VALIDOS[agendamento.servico]
+  if (!preco) {
+    const { data: svc } = await supabase
+      .from('servicos').select('preco').eq('label', agendamento.servico).eq('ativo', true).maybeSingle()
+    if (svc) preco = svc.preco
+  }
   if (!preco) throw new Error('Serviço inválido.')
   if (new Date(agendamento.data) < new Date()) throw new Error('Data inválida.')
 
@@ -154,5 +159,44 @@ export async function desbloquearDia(data) {
     .from('dias_bloqueados')
     .delete()
     .eq('data', data)
+  if (error) throw error
+}
+
+// ─── Config ──────────────────────────────────────────────────────────────────
+export async function buscarConfig(key) {
+  const { data } = await supabase.from('config').select('value').eq('key', key).maybeSingle()
+  return data?.value ?? null
+}
+
+export async function salvarConfig(key, value) {
+  const { error } = await supabase
+    .from('config')
+    .upsert({ key, value }, { onConflict: 'key' })
+  if (error) throw error
+}
+
+// ─── Serviços customizados ────────────────────────────────────────────────────
+export async function getServicosCustom() {
+  const { data, error } = await supabase
+    .from('servicos')
+    .select('*')
+    .eq('ativo', true)
+    .order('created_at', { ascending: true })
+  if (error) return []
+  return data || []
+}
+
+export async function criarServico(servico) {
+  const { data, error } = await supabase
+    .from('servicos')
+    .insert([servico])
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function removerServico(id) {
+  const { error } = await supabase.from('servicos').update({ ativo: false }).eq('id', id)
   if (error) throw error
 }

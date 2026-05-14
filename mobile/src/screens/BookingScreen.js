@@ -6,7 +6,7 @@ import {
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { Ionicons } from '@expo/vector-icons'
 import { COLORS, INPUT, BTN_PRIMARY, LABEL } from '../theme'
-import { criarAgendamentoPublico, buscarHorariosOcupados, buscarDiasBloqueados } from '../services/supabase'
+import { criarAgendamentoPublico, buscarHorariosOcupados, buscarDiasBloqueados, buscarConfig } from '../services/supabase'
 import { HORARIOS } from '../constants'
 import { validarAgendamento, hojeISO } from '../utils/validar'
 
@@ -36,6 +36,7 @@ export default function BookingScreen({ navigation }) {
   const [horaSelecionada, setHoraSelecionada] = useState(null)
   const [horasOcupadas, setHorasOcupadas]   = useState([])
   const [diasBloqueados, setDiasBloqueados] = useState([])
+  const [almocoConfig, setAlmocoConfig]     = useState(null)
   const [loadingSlots, setLoadingSlots]     = useState(false)
   const [loading, setLoading]               = useState(false)
   const [error, setError]                   = useState('')
@@ -43,6 +44,7 @@ export default function BookingScreen({ navigation }) {
 
   useEffect(() => {
     buscarDiasBloqueados().then(setDiasBloqueados)
+    buscarConfig('almoco').then(setAlmocoConfig)
   }, [])
 
   useEffect(() => {
@@ -63,9 +65,10 @@ export default function BookingScreen({ navigation }) {
     return (hora) => {
       if (horasOcupadas.includes(hora)) return true
       if (ehHoje && hora <= agora.getHours()) return true
+      if (almocoConfig?.ativo && hora >= almocoConfig.inicio && hora < almocoConfig.fim) return true
       return false
     }
-  }, [horasOcupadas, form.data])
+  }, [horasOcupadas, form.data, almocoConfig])
 
   async function handleSubmit() {
     const err = validarAgendamento(form, horaSelecionada)

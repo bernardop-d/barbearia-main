@@ -1,5 +1,9 @@
 import { useState, useEffect, useMemo } from 'react'
-import { criarAgendamentoPublico, buscarHorariosOcupados, buscarDiasBloqueados } from './services/supabase'
+import {
+  supabase, criarAgendamentoPublico, buscarHorariosOcupados,
+  buscarDiasBloqueados, buscarConfig, getAgendamentos,
+  atualizarStatus, removerAgendamento, login, logout,
+} from './services/supabase'
 
 const SERVICOS = [
   { id: 'corte',       label: 'Corte Normal',   preco: 35,  desc: 'Corte tradicional' },
@@ -12,9 +16,7 @@ const SERVICOS = [
 
 const HORARIOS = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
 
-function hojeISO() {
-  return new Date().toISOString().slice(0, 10)
-}
+function hojeISO() { return new Date().toISOString().slice(0, 10) }
 
 function formatarData(dateStr) {
   if (!dateStr) return ''
@@ -38,26 +40,39 @@ function validar(form, horaSelecionada) {
   const w = form.whatsapp.replace(/\D/g, '')
   if (w) {
     if (w.length < 10 || w.length > 11) return 'WhatsApp inválido (DDD + número).'
-    const ddd = parseInt(w.slice(0, 2))
-    if (ddd < 11) return 'DDD inválido.'
+    if (parseInt(w.slice(0, 2)) < 11) return 'DDD inválido.'
   }
   return null
 }
 
 export default function App() {
-  const [step,           setStep]           = useState(1)
-  const [servico,        setServico]        = useState(null)
-  const [form,           setForm]           = useState({ nome: '', whatsapp: '', data: hojeISO() })
+  const [step,            setStep]            = useState(1)
+  const [servico,         setServico]         = useState(null)
+  const [form,            setForm]            = useState({ nome: '', whatsapp: '', data: hojeISO() })
   const [horaSelecionada, setHoraSelecionada] = useState(null)
-  const [horasOcupadas,  setHorasOcupadas]  = useState([])
-  const [diasBloqueados, setDiasBloqueados] = useState([])
-  const [loadingSlots,   setLoadingSlots]   = useState(false)
-  const [loading,        setLoading]        = useState(false)
-  const [error,          setError]          = useState('')
-  const [resultado,      setResultado]      = useState(null)
+  const [horasOcupadas,   setHorasOcupadas]   = useState([])
+  const [diasBloqueados,  setDiasBloqueados]  = useState([])
+  const [almocoConfig,    setAlmocoConfig]    = useState(null)
+  const [loadingSlots,    setLoadingSlots]    = useState(false)
+  const [loading,         setLoading]         = useState(false)
+  const [error,           setError]           = useState('')
+  const [resultado,       setResultado]       = useState(null)
+
+  // Admin
+  const [adminOpen, setAdminOpen] = useState(false)
+  const [adminUser, setAdminUser] = useState(null)
 
   useEffect(() => {
     buscarDiasBloqueados().then(setDiasBloqueados)
+    buscarConfig('almoco').then(setAlmocoConfig)
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) setAdminUser(session.user)
+    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+      setAdminUser(session?.user ?? null)
+    })
+    return () => subscription.unsubscribe()
   }, [])
 
   useEffect(() => {
@@ -76,9 +91,10 @@ export default function App() {
     return (hora) => {
       if (horasOcupadas.includes(hora)) return true
       if (ehHoje && hora <= agora.getHours()) return true
+      if (almocoConfig?.ativo && hora >= almocoConfig.inicio && hora < almocoConfig.fim) return true
       return false
     }
-  }, [horasOcupadas, form.data])
+  }, [horasOcupadas, form.data, almocoConfig])
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -99,29 +115,29 @@ export default function App() {
       setStep('success')
     } catch (err) {
       const msg = err.message || ''
-      if (msg.includes('Horário indisponível')) {
-        setError('Horário indisponível. Volte e escolha outro.')
-        setStep(2)
-      } else if (msg.includes('já tem um agendamento')) {
-        setError(msg)
-      } else if (msg.includes('Serviço inválido') || msg.includes('Data inválida')) {
-        setError(msg)
-      } else {
-        setError('Erro ao agendar. Tente novamente.')
-      }
-      console.error(err)
+      if (msg.includes('Horário indisponível')) { setError('Horário indisponível. Volte e escolha outro.'); setStep(2) }
+      else if (msg.includes('já tem um agendamento')) setError(msg)
+      else if (msg.includes('Serviço inválido') || msg.includes('Data inválida')) setError(msg)
+      else setError('Erro ao agendar. Tente novamente.')
     } finally {
       setLoading(false)
     }
   }
 
   function resetar() {
-    setStep(1)
-    setServico(null)
+    setStep(1); setServico(null)
     setForm({ nome: '', whatsapp: '', data: hojeISO() })
-    setHoraSelecionada(null)
-    setResultado(null)
-    setError('')
+    setHoraSelecionada(null); setResultado(null); setError('')
+  }
+
+  if (adminOpen) {
+    return (
+      <AdminSection
+        user={adminUser}
+        onLogout={async () => { await logout(); setAdminUser(null) }}
+        onClose={() => setAdminOpen(false)}
+      />
+    )
   }
 
   if (step === 'success') return <SuccessScreen resultado={resultado} onNovo={resetar} />
@@ -144,29 +160,24 @@ export default function App() {
       </div>
 
       {/* Steps indicator */}
-      {step !== 'success' && (
-        <div className="max-w-sm mx-auto px-6 pt-6 pb-2">
-          <div className="flex items-center gap-2">
-            {[1, 2, 3].map(n => (
-              <div key={n} className="flex items-center gap-2 flex-1">
-                <div className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold border transition-all
-                  ${step >= n
-                    ? 'bg-blade-500 border-blade-500 text-ink'
-                    : 'bg-transparent border-ink-600 text-ink-500'
-                  }`}>
-                  {step > n ? '✓' : n}
-                </div>
-                {n < 3 && <div className={`flex-1 h-px transition-all ${step > n ? 'bg-blade-500' : 'bg-ink-700'}`} />}
+      <div className="max-w-sm mx-auto px-6 pt-6 pb-2">
+        <div className="flex items-center gap-2">
+          {[1, 2, 3].map(n => (
+            <div key={n} className="flex items-center gap-2 flex-1">
+              <div className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold border transition-all
+                ${step >= n ? 'bg-blade-500 border-blade-500 text-ink' : 'bg-transparent border-ink-600 text-ink-500'}`}>
+                {step > n ? '✓' : n}
               </div>
-            ))}
-          </div>
-          <div className="flex justify-between mt-1.5 text-[10px] text-ink-500 uppercase tracking-wider">
-            <span>Serviço</span>
-            <span className="ml-3">Data & Hora</span>
-            <span>Seus dados</span>
-          </div>
+              {n < 3 && <div className={`flex-1 h-px transition-all ${step > n ? 'bg-blade-500' : 'bg-ink-700'}`} />}
+            </div>
+          ))}
         </div>
-      )}
+        <div className="flex justify-between mt-1.5 text-[10px] text-ink-500 uppercase tracking-wider">
+          <span>Serviço</span>
+          <span className="ml-3">Data &amp; Hora</span>
+          <span>Seus dados</span>
+        </div>
+      </div>
 
       <div className="max-w-sm mx-auto px-6 py-6">
 
@@ -187,9 +198,7 @@ export default function App() {
                     <p className="font-semibold text-sm text-white group-hover:text-blade-400 transition-colors">{s.label}</p>
                     <p className="text-ink-400 text-xs mt-0.5">{s.desc}</p>
                   </div>
-                  <div className="text-right">
-                    <p className="font-mono font-bold text-sm text-blade-400">{formatarMoeda(s.preco)}</p>
-                  </div>
+                  <p className="font-mono font-bold text-sm text-blade-400">{formatarMoeda(s.preco)}</p>
                   <span className="text-ink-600 group-hover:text-blade-400 text-lg transition-colors">›</span>
                 </button>
               ))}
@@ -200,7 +209,6 @@ export default function App() {
         {/* STEP 2: Data e Hora */}
         {step === 2 && (
           <div className="animate-fade-in">
-            {/* Serviço selecionado */}
             <button
               type="button"
               onClick={() => setStep(1)}
@@ -216,7 +224,6 @@ export default function App() {
             <h2 className="text-xl font-bold text-white mb-1">Quando?</h2>
             <p className="text-ink-400 text-sm mb-5">Escolha data e horário</p>
 
-            {/* Data */}
             <div className="mb-5">
               <label className="block text-xs text-ink-400 font-medium mb-2 uppercase tracking-wider">Data</label>
               <input
@@ -226,12 +233,9 @@ export default function App() {
                 value={form.data}
                 onChange={e => setForm(prev => ({ ...prev, data: e.target.value }))}
               />
-              {form.data && (
-                <p className="text-blade-400/70 text-xs mt-2 ml-1">{formatarData(form.data)}</p>
-              )}
+              {form.data && <p className="text-blade-400/70 text-xs mt-2 ml-1">{formatarData(form.data)}</p>}
             </div>
 
-            {/* Horários */}
             <div className="mb-6">
               <label className="block text-xs text-ink-400 font-medium mb-3 uppercase tracking-wider">Horário</label>
               {diasBloqueados.includes(form.data) ? (
@@ -268,9 +272,7 @@ export default function App() {
                 </div>
               )}
               {!diasBloqueados.includes(form.data) && !loadingSlots && HORARIOS.every(h => slotDesabilitado(h)) && (
-                <p className="text-center text-ink-500 text-xs mt-3 py-2">
-                  Sem horários disponíveis nessa data. Escolha outro dia.
-                </p>
+                <p className="text-center text-ink-500 text-xs mt-3">Sem horários disponíveis nessa data. Escolha outro dia.</p>
               )}
             </div>
 
@@ -285,23 +287,13 @@ export default function App() {
           </div>
         )}
 
-        {/* STEP 3: Dados pessoais */}
+        {/* STEP 3: Dados */}
         {step === 3 && (
           <form onSubmit={handleSubmit} className="animate-fade-in">
-            {/* Resumo */}
             <div className="card mb-5 flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <span className="text-ink-400 text-xs uppercase tracking-wider">Serviço</span>
-                <span className="text-white text-sm font-semibold">{servico.label}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-ink-400 text-xs uppercase tracking-wider">Data</span>
-                <span className="text-white text-sm">{formatarData(form.data)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-ink-400 text-xs uppercase tracking-wider">Horário</span>
-                <span className="text-white text-sm font-semibold">{String(horaSelecionada).padStart(2, '0')}:00</span>
-              </div>
+              <Row label="Serviço" value={servico.label} />
+              <Row label="Data"    value={formatarData(form.data)} />
+              <Row label="Horário" value={`${String(horaSelecionada).padStart(2, '0')}:00`} />
               <div className="pt-2 mt-1 border-t border-ink-700 flex items-center justify-between">
                 <span className="text-ink-400 text-xs uppercase tracking-wider">Total</span>
                 <span className="text-blade-400 font-mono font-bold">{formatarMoeda(servico.preco)}</span>
@@ -313,9 +305,7 @@ export default function App() {
 
             <div className="flex flex-col gap-4">
               <div>
-                <label className="block text-xs text-ink-400 font-medium mb-2 uppercase tracking-wider">
-                  Nome completo *
-                </label>
+                <label className="block text-xs text-ink-400 font-medium mb-2 uppercase tracking-wider">Nome completo *</label>
                 <input
                   className="input"
                   placeholder="João Silva"
@@ -325,7 +315,6 @@ export default function App() {
                   onChange={e => setForm(prev => ({ ...prev, nome: e.target.value }))}
                 />
               </div>
-
               <div>
                 <label className="block text-xs text-ink-400 font-medium mb-2 uppercase tracking-wider">
                   WhatsApp <span className="normal-case text-ink-500 font-normal">(opcional)</span>
@@ -354,18 +343,10 @@ export default function App() {
               )}
 
               <button type="submit" className="btn-primary mt-1" disabled={loading}>
-                {loading ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <Spinner /> Confirmando...
-                  </span>
-                ) : 'Confirmar agendamento'}
+                {loading ? <span className="flex items-center justify-center gap-2"><Spinner /> Confirmando...</span> : 'Confirmar agendamento'}
               </button>
 
-              <button
-                type="button"
-                onClick={() => setStep(2)}
-                className="text-ink-500 text-sm text-center hover:text-ink-300 transition-colors py-1"
-              >
+              <button type="button" onClick={() => setStep(2)} className="text-ink-500 text-sm text-center hover:text-ink-300 transition-colors py-1">
                 ← Voltar
               </button>
             </div>
@@ -373,22 +354,348 @@ export default function App() {
         )}
       </div>
 
-      <p className="text-center text-ink-600 text-xs pb-8">
-        DUNGABARBER © {new Date().getFullYear()}
+      <p className="text-center text-ink-600 text-xs pb-6">
+        DUNGABARBER © {new Date().getFullYear()} ·{' '}
+        <button onClick={() => setAdminOpen(true)} className="hover:text-ink-400 transition-colors">
+          Admin
+        </button>
       </p>
     </div>
   )
 }
 
+// ─── Admin section ────────────────────────────────────────────────────────────
+function AdminSection({ user, onLogout, onClose }) {
+  return user ? (
+    <AdminPanel user={user} onLogout={onLogout} onClose={onClose} />
+  ) : (
+    <AdminLogin onClose={onClose} />
+  )
+}
+
+function AdminLogin({ onClose }) {
+  const [email,    setEmail]    = useState('')
+  const [password, setPassword] = useState('')
+  const [loading,  setLoading]  = useState(false)
+  const [error,    setError]    = useState('')
+
+  async function handleLogin(e) {
+    e.preventDefault()
+    if (!email || !password) { setError('Preencha email e senha.'); return }
+    setError(''); setLoading(true)
+    try {
+      await login(email, password)
+    } catch (err) {
+      setError('Email ou senha incorretos.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-ink flex flex-col items-center justify-center p-6">
+      <div className="w-full max-w-sm">
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-blade-500/10 border border-blade-500/20 mb-4">
+            <ScissorsIcon />
+          </div>
+          <h1 className="font-display text-4xl tracking-widest text-white">DUNGABARBER</h1>
+          <p className="text-ink-400 text-sm mt-1">Área administrativa</p>
+        </div>
+
+        <form onSubmit={handleLogin} className="flex flex-col gap-4">
+          <div>
+            <label className="block text-xs text-ink-400 font-medium mb-2 uppercase tracking-wider">Email</label>
+            <input
+              type="email"
+              className="input"
+              placeholder="admin@email.com"
+              value={email}
+              autoFocus
+              onChange={e => setEmail(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-ink-400 font-medium mb-2 uppercase tracking-wider">Senha</label>
+            <input
+              type="password"
+              className="input"
+              placeholder="••••••••"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+            />
+          </div>
+
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-red-400 text-sm">
+              {error}
+            </div>
+          )}
+
+          <button type="submit" className="btn-primary" disabled={loading}>
+            {loading ? <span className="flex items-center justify-center gap-2"><Spinner /> Entrando...</span> : 'Entrar'}
+          </button>
+
+          <button type="button" onClick={onClose} className="text-ink-500 text-sm text-center hover:text-ink-300 transition-colors py-1">
+            ← Voltar ao site
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+const STATUS_CONFIG = {
+  confirmado: { label: 'Confirmado', bg: 'bg-blade-500/10', border: 'border-blade-500/30', text: 'text-blade-400' },
+  finalizado: { label: 'Finalizado', bg: 'bg-yellow-500/10', border: 'border-yellow-500/30', text: 'text-yellow-400' },
+  cancelado:  { label: 'Cancelado',  bg: 'bg-red-500/10',    border: 'border-red-500/30',    text: 'text-red-400' },
+}
+
+function AdminPanel({ user, onLogout, onClose }) {
+  const [agendamentos, setAgendamentos] = useState([])
+  const [loading,      setLoading]      = useState(true)
+  const [filtro,       setFiltro]       = useState('todos')
+  const [busca,        setBusca]        = useState('')
+
+  async function fetchData() {
+    try {
+      setLoading(true)
+      const data = await getAgendamentos()
+      setAgendamentos(data)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { fetchData() }, [])
+
+  const lista = useMemo(() => {
+    let r = [...agendamentos]
+    if (filtro !== 'todos') r = r.filter(a => a.status === filtro)
+    if (busca.trim()) {
+      const q = busca.toLowerCase()
+      r = r.filter(a => a.nome.toLowerCase().includes(q) || a.servico.toLowerCase().includes(q))
+    }
+    return r
+  }, [agendamentos, filtro, busca])
+
+  const stats = useMemo(() => {
+    const agora = new Date()
+    const ini = new Date(agora); ini.setHours(0, 0, 0, 0)
+    const fim = new Date(agora); fim.setHours(23, 59, 59, 999)
+    let hoje = 0, confirmados = 0, receitaHoje = 0
+    for (const a of agendamentos) {
+      const d = new Date(a.data)
+      if (a.status === 'confirmado') confirmados++
+      if (d >= ini && d <= fim) { hoje++; if (a.status === 'finalizado') receitaHoje += Number(a.preco) }
+    }
+    return { hoje, confirmados, receitaHoje }
+  }, [agendamentos])
+
+  async function handleStatus(id, status) {
+    try { await atualizarStatus(id, status); await fetchData() }
+    catch (e) { console.error(e) }
+  }
+
+  async function handleRemover(id, nome) {
+    if (!window.confirm(`Remover o agendamento de ${nome}?`)) return
+    try { await removerAgendamento(id); await fetchData() }
+    catch (e) { console.error(e) }
+  }
+
+  return (
+    <div className="min-h-screen bg-ink text-white">
+      {/* Header */}
+      <div className="bg-ink-800 border-b border-ink-700 px-6 py-4">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
+          <div>
+            <h1 className="font-display text-2xl tracking-widest text-white">DUNGABARBER</h1>
+            <p className="text-ink-400 text-xs">Área administrativa · {user.email}</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onClose}
+              className="text-ink-400 text-sm hover:text-white transition-colors px-3 py-1.5 rounded-lg border border-ink-700 hover:border-ink-600"
+            >
+              Site público
+            </button>
+            <button
+              onClick={onLogout}
+              className="text-ink-400 text-sm hover:text-white transition-colors px-3 py-1.5 rounded-lg border border-ink-700 hover:border-ink-600"
+            >
+              Sair
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-4xl mx-auto px-6 py-6">
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="card text-center">
+            <p className="text-2xl font-bold text-white">{stats.hoje}</p>
+            <p className="text-ink-400 text-xs uppercase tracking-wider mt-1">Hoje</p>
+          </div>
+          <div className="card text-center">
+            <p className="text-2xl font-bold text-blade-400">{stats.confirmados}</p>
+            <p className="text-ink-400 text-xs uppercase tracking-wider mt-1">Confirmados</p>
+          </div>
+          <div className="card text-center">
+            <p className="text-2xl font-bold text-yellow-400">{formatarMoeda(stats.receitaHoje)}</p>
+            <p className="text-ink-400 text-xs uppercase tracking-wider mt-1">Receita hoje</p>
+          </div>
+        </div>
+
+        {/* Busca */}
+        <div className="relative mb-4">
+          <input
+            type="text"
+            className="input pl-10"
+            placeholder="Buscar por nome ou serviço..."
+            value={busca}
+            onChange={e => setBusca(e.target.value)}
+          />
+          <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </div>
+
+        {/* Filtros */}
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
+          {[
+            { id: 'todos',      label: 'Todos' },
+            { id: 'confirmado', label: 'Confirmados' },
+            { id: 'finalizado', label: 'Finalizados' },
+            { id: 'cancelado',  label: 'Cancelados' },
+          ].map(f => (
+            <button
+              key={f.id}
+              onClick={() => setFiltro(f.id)}
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold border transition-all whitespace-nowrap
+                ${filtro === f.id
+                  ? 'bg-blade-500/10 border-blade-500/30 text-blade-400'
+                  : 'bg-ink-800 border-ink-700 text-ink-400 hover:border-ink-600'
+                }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Lista */}
+        {loading ? (
+          <div className="flex items-center justify-center py-20 text-ink-500 gap-3">
+            <Spinner /> Carregando agendamentos...
+          </div>
+        ) : lista.length === 0 ? (
+          <div className="card text-center py-12">
+            <p className="text-ink-400 text-sm">Nenhum agendamento encontrado</p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {lista.map(a => (
+              <AdminCard
+                key={a.id}
+                agendamento={a}
+                onStatus={handleStatus}
+                onRemover={handleRemover}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function AdminCard({ agendamento, onStatus, onRemover }) {
+  const [open, setOpen] = useState(false)
+  const st = STATUS_CONFIG[agendamento.status] || STATUS_CONFIG.confirmado
+  const data = new Date(agendamento.data)
+
+  return (
+    <div className="card p-0 overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center gap-4 p-4 text-left hover:bg-ink-700/30 transition-colors"
+      >
+        <div className="w-9 h-9 rounded-lg bg-blade-500/10 border border-blade-500/20 flex items-center justify-center shrink-0">
+          <span className="text-blade-400 font-bold text-sm">{agendamento.nome[0].toUpperCase()}</span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-white font-semibold text-sm truncate">{agendamento.nome}</p>
+          <p className="text-ink-400 text-xs mt-0.5">
+            {agendamento.servico} · {data.toLocaleDateString('pt-BR')} às {data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+          </p>
+        </div>
+        <div className="text-right shrink-0">
+          <p className="text-blade-400 font-mono font-bold text-sm">{formatarMoeda(agendamento.preco)}</p>
+          <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${st.bg} ${st.border} ${st.text}`}>
+            {st.label}
+          </span>
+        </div>
+        <span className={`text-ink-500 transition-transform ${open ? 'rotate-90' : ''}`}>›</span>
+      </button>
+
+      {open && (
+        <div className="border-t border-ink-700 px-4 py-3 flex flex-wrap gap-2">
+          {agendamento.status === 'confirmado' && (
+            <>
+              <button
+                onClick={() => onStatus(agendamento.id, 'finalizado')}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/20 transition-colors"
+              >
+                Finalizar
+              </button>
+              <button
+                onClick={() => onStatus(agendamento.id, 'cancelado')}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-colors"
+              >
+                Cancelar
+              </button>
+            </>
+          )}
+          {agendamento.status === 'cancelado' && (
+            <button
+              onClick={() => onStatus(agendamento.id, 'confirmado')}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blade-500/10 border border-blade-500/30 text-blade-400 hover:bg-blade-500/20 transition-colors"
+            >
+              Reativar
+            </button>
+          )}
+          {agendamento.whatsapp && (
+            <a
+              href={`https://wa.me/55${agendamento.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá, ${agendamento.nome}! Seu agendamento na *DUNGABARBER* está confirmado para ${data.toLocaleDateString('pt-BR')} às ${data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}. Te esperamos!`)}`}
+              target="_blank"
+              rel="noreferrer"
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blade-500/8 border border-blade-500/20 text-blade-400 hover:bg-blade-500/20 transition-colors"
+            >
+              WhatsApp
+            </a>
+          )}
+          <button
+            onClick={() => onRemover(agendamento.id, agendamento.nome)}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-500/8 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-colors ml-auto"
+          >
+            Remover
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Success screen ───────────────────────────────────────────────────────────
 function SuccessScreen({ resultado, onNovo }) {
   const data = new Date(resultado.data)
   return (
     <div className="min-h-screen bg-ink flex flex-col">
       <div className="h-1 bg-gradient-to-r from-transparent via-blade-500 to-transparent" />
-
       <div className="flex-1 flex flex-col items-center justify-center p-6">
         <div className="w-full max-w-sm">
-          {/* Icon */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-blade-500/10 border-2 border-blade-500/30 mb-4">
               <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#00e87a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -398,8 +705,6 @@ function SuccessScreen({ resultado, onNovo }) {
             <h2 className="font-display text-5xl text-white tracking-wide">Confirmado!</h2>
             <p className="text-blade-400 text-sm mt-1">Seu agendamento está garantido</p>
           </div>
-
-          {/* Card resumo */}
           <div className="card mb-6 flex flex-col gap-3">
             <Row label="Cliente"  value={resultado.nome} />
             <Row label="Serviço"  value={resultado.servico} />
@@ -407,25 +712,16 @@ function SuccessScreen({ resultado, onNovo }) {
             <Row label="Horário"  value={data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} />
             <div className="pt-3 border-t border-ink-700 flex items-center justify-between">
               <span className="text-ink-400 text-sm font-medium">Total</span>
-              <span className="text-blade-400 font-mono font-bold text-lg">
-                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(resultado.preco)}
-              </span>
+              <span className="text-blade-400 font-mono font-bold text-lg">{formatarMoeda(resultado.preco)}</span>
             </div>
           </div>
-
           <div className="bg-ink-800 border border-ink-700 rounded-xl px-4 py-3 mb-6 text-center">
             <p className="text-ink-400 text-xs">Apareça no horário marcado. Em caso de imprevisto, avise com antecedência.</p>
           </div>
-
-          <button onClick={onNovo} className="btn-primary">
-            Fazer outro agendamento
-          </button>
+          <button onClick={onNovo} className="btn-primary">Fazer outro agendamento</button>
         </div>
       </div>
-
-      <p className="text-center text-ink-600 text-xs pb-6">
-        DUNGABARBER © {new Date().getFullYear()}
-      </p>
+      <p className="text-center text-ink-600 text-xs pb-6">DUNGABARBER © {new Date().getFullYear()}</p>
     </div>
   )
 }

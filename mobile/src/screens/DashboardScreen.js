@@ -114,7 +114,7 @@ export default function DashboardScreen({ navigation }) {
       {/* Stats principais (2 cols) */}
       <View style={s.statsRow}>
         <StatCard label="Faturamento total" value={formatMoeda(stats.faturamentoTotal)} iconName="cash-outline"      accent="green" />
-        <StatCard label="Este mês"           value={formatMoeda(stats.faturamentoMes)}   iconName="calendar-stats-outline" accent="gold" />
+        <StatCard label="Este mês"           value={formatMoeda(stats.faturamentoMes)}   iconName="stats-chart-outline" accent="gold" />
       </View>
 
       {/* Mini stats (3 cols) */}
