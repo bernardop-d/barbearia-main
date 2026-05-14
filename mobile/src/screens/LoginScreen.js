@@ -4,10 +4,9 @@ import {
   KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Image,
 } from 'react-native'
 import { COLORS, INPUT, BTN_PRIMARY, LABEL } from '../theme'
-import { login, signup } from '../services/supabase'
+import { login } from '../services/supabase'
 
 export default function LoginScreen() {
-  const [isSignup, setIsSignup] = useState(false)
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading]   = useState(false)
@@ -18,19 +17,12 @@ export default function LoginScreen() {
     setError('')
     setLoading(true)
     try {
-      if (isSignup) {
-        await signup(email, password)
-        await login(email, password)
-      } else {
-        await login(email, password)
-      }
+      await login(email, password)
     } catch (err) {
       if (err.message?.includes('Invalid login credentials')) {
         setError('Email ou senha incorretos.')
-      } else if (err.message?.includes('User already registered')) {
-        setError('Email já cadastrado. Faça login.')
       } else {
-        setError(isSignup ? 'Erro ao criar conta.' : 'Erro ao entrar.')
+        setError('Erro ao entrar.')
       }
     } finally {
       setLoading(false)
@@ -53,10 +45,8 @@ export default function LoginScreen() {
         </View>
 
         <View style={s.card}>
-          <Text style={s.cardTitle}>{isSignup ? 'Criar conta' : 'Entrar'}</Text>
-          <Text style={s.cardSub}>
-            {isSignup ? 'Crie sua conta de proprietário' : 'Acesse sua conta'}
-          </Text>
+          <Text style={s.cardTitle}>Entrar</Text>
+          <Text style={s.cardSub}>Acesse sua conta de proprietário</Text>
 
           <View style={s.field}>
             <Text style={LABEL}>E-mail</Text>
@@ -82,9 +72,6 @@ export default function LoginScreen() {
               onChangeText={setPassword}
               secureTextEntry
             />
-            {isSignup && (
-              <Text style={s.hint}>Mínimo de 6 caracteres</Text>
-            )}
           </View>
 
           {!!error && (
@@ -100,17 +87,8 @@ export default function LoginScreen() {
           >
             {loading
               ? <ActivityIndicator color={COLORS.bg} />
-              : <Text style={s.btnText}>{isSignup ? 'Criar conta e entrar' : 'Entrar'}</Text>
+              : <Text style={s.btnText}>Entrar</Text>
             }
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={s.switchBtn}
-            onPress={() => { setIsSignup(!isSignup); setError('') }}
-          >
-            <Text style={s.switchText}>
-              {isSignup ? 'Já tem conta? Faça login' : 'Não tem conta? Criar uma'}
-            </Text>
           </TouchableOpacity>
         </View>
 
@@ -142,7 +120,7 @@ const s = StyleSheet.create({
   cardTitle: { color: COLORS.white, fontSize: 22, fontWeight: '800', letterSpacing: 1 },
   cardSub:   { color: COLORS.textMuted, fontSize: 13, marginTop: 4, marginBottom: 20 },
   field:     { marginBottom: 16 },
-  hint:      { color: COLORS.textDim, fontSize: 11, marginTop: 6 },
+
   errorBox: {
     backgroundColor: COLORS.errorBg,
     borderRadius: 12,
@@ -155,7 +133,6 @@ const s = StyleSheet.create({
   btn:       { marginTop: 4 },
   btnDisabled: { opacity: 0.6 },
   btnText:   { color: COLORS.bg, fontSize: 15, fontWeight: '700' },
-  switchBtn: { alignItems: 'center', marginTop: 20 },
-  switchText: { color: COLORS.textMuted, fontSize: 13 },
+
   footer:    { color: COLORS.textDim, fontSize: 11, textAlign: 'center', marginTop: 24 },
 })
