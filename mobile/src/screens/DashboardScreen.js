@@ -19,7 +19,7 @@ function formatDataLonga(date) {
 function formatHora(date) {
   return new Date(date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 }
-function amanha() {
+function inicioDiaAmanha() {
   const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(0, 0, 0, 0); return d
 }
 
@@ -53,7 +53,7 @@ export default function DashboardScreen({ navigation }) {
     return () => supabase.removeChannel(ch)
   }, [fetchData])
 
-  const amDate = amanha()
+  const amDate = inicioDiaAmanha()
   const amFim  = new Date(amDate); amFim.setHours(23, 59, 59, 999)
 
   const stats = useMemo(() => {
