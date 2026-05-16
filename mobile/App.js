@@ -17,8 +17,9 @@ import DashboardScreen       from './src/screens/DashboardScreen'
 import AgendaScreen          from './src/screens/AgendaScreen'
 import AgendamentoFormScreen from './src/screens/AgendamentoFormScreen'
 import AdminConfigScreen     from './src/screens/AdminConfigScreen'
-import BookingScreen         from './src/screens/BookingScreen'
-import BookingSuccessScreen  from './src/screens/BookingSuccessScreen'
+import VendasScreen          from './src/screens/VendasScreen'
+import EstoqueScreen         from './src/screens/EstoqueScreen'
+import FinanceiroScreen      from './src/screens/FinanceiroScreen'
 
 const Tab   = createBottomTabNavigator()
 const Stack = createNativeStackNavigator()
@@ -41,28 +42,19 @@ const SCREEN_OPTIONS = {
 }
 
 const ADMIN_ICONS = {
-  Dashboard: 'speedometer-outline',
-  Agenda:    'calendar-outline',
-  Novo:      'add-circle-outline',
-  Config:    'settings-outline',
-  Agendar:   'cut-outline',
+  Dashboard:  'speedometer-outline',
+  Agenda:     'calendar-outline',
+  Vendas:     'bag-outline',
+  Financeiro: 'bar-chart-outline',
+  Config:     'settings-outline',
 }
 
-function BookingStack() {
-  return (
-    <Stack.Navigator screenOptions={SCREEN_OPTIONS}>
-      <Stack.Screen name="Booking"       component={BookingScreen}        options={{ headerShown: false }} />
-      <Stack.Screen name="BookingSuccess" component={BookingSuccessScreen} options={{ title: 'Confirmação', headerBackVisible: false }} />
-    </Stack.Navigator>
-  )
-}
-
-// Logged-in: 5 flat tabs wrapped in a stack for the edit modal
 function AdminRoot() {
   return (
     <Stack.Navigator screenOptions={SCREEN_OPTIONS}>
       <Stack.Screen name="AdminTabs"         component={AdminTabs}            options={{ headerShown: false }} />
-      <Stack.Screen name="EditarAgendamento" component={AgendamentoFormScreen} options={{ title: 'Editar Agendamento', presentation: 'modal' }} />
+      <Stack.Screen name="EditarAgendamento" component={AgendamentoFormScreen} options={{ title: 'Agendamento', presentation: 'modal' }} />
+      <Stack.Screen name="Estoque"           component={EstoqueScreen}         options={{ title: 'Estoque' }} />
     </Stack.Navigator>
   )
 }
@@ -81,11 +73,11 @@ function AdminTabs() {
         ),
       })}
     >
-      <Tab.Screen name="Dashboard" component={DashboardScreen}       options={{ title: 'Dashboard', headerShown: false }} />
-      <Tab.Screen name="Agenda"    component={AgendaScreen}          options={{ title: 'Agenda' }} />
-      <Tab.Screen name="Novo"      component={AgendamentoFormScreen} options={{ title: 'Novo', headerTitle: 'Novo Agendamento' }} />
-      <Tab.Screen name="Config"    component={AdminConfigScreen}     options={{ title: 'Admin', headerTitle: 'Configurações' }} />
-      <Tab.Screen name="Agendar"   component={BookingStack}          options={{ title: 'Agendar', headerShown: false }} />
+      <Tab.Screen name="Dashboard"  component={DashboardScreen}   options={{ title: 'Dashboard', headerShown: false }} />
+      <Tab.Screen name="Agenda"     component={AgendaScreen}      options={{ title: 'Agenda', headerTitle: 'Agenda' }} />
+      <Tab.Screen name="Vendas"     component={VendasScreen}      options={{ title: 'Vendas', headerTitle: 'Sistema de Vendas' }} />
+      <Tab.Screen name="Financeiro" component={FinanceiroScreen}  options={{ title: 'Financeiro', headerTitle: 'Controle Financeiro' }} />
+      <Tab.Screen name="Config"     component={AdminConfigScreen} options={{ title: 'Config', headerTitle: 'Configurações' }} />
     </Tab.Navigator>
   )
 }

@@ -200,3 +200,71 @@ export async function removerServico(id) {
   const { error } = await supabase.from('servicos').update({ ativo: false }).eq('id', id)
   if (error) throw error
 }
+
+// ─── Produtos / Estoque ───────────────────────────────────────────────────────
+export async function getProdutos(tipo = null) {
+  let q = supabase.from('produtos').select('*').eq('ativo', true).order('nome')
+  if (tipo) q = q.eq('tipo', tipo)
+  const { data, error } = await q
+  if (error) throw error
+  return data || []
+}
+
+export async function criarProduto(produto) {
+  const { data, error } = await supabase.from('produtos').insert([produto]).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function atualizarProduto(id, dados) {
+  const { data, error } = await supabase.from('produtos').update(dados).eq('id', id).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function removerProduto(id) {
+  const { error } = await supabase.from('produtos').update({ ativo: false }).eq('id', id)
+  if (error) throw error
+}
+
+export async function ajustarEstoque(id, delta) {
+  const { error } = await supabase.rpc('ajustar_estoque', { p_id: id, p_delta: delta })
+  if (error) throw error
+}
+
+// ─── Vendas ───────────────────────────────────────────────────────────────────
+export async function getVendas(limite = 50) {
+  const { data, error } = await supabase
+    .from('vendas').select('*').order('data', { ascending: false }).limit(limite)
+  if (error) throw error
+  return data || []
+}
+
+export async function registrarVenda(venda) {
+  const { data, error } = await supabase
+    .from('vendas')
+    .insert([{ ...venda, data: new Date().toISOString() }])
+    .select().single()
+  if (error) throw error
+  if (venda.produto_id) await ajustarEstoque(venda.produto_id, -venda.quantidade)
+  return data
+}
+
+// ─── Despesas ─────────────────────────────────────────────────────────────────
+export async function getDespesas(limite = 100) {
+  const { data, error } = await supabase
+    .from('despesas').select('*').order('data', { ascending: false }).limit(limite)
+  if (error) throw error
+  return data || []
+}
+
+export async function criarDespesa(despesa) {
+  const { data, error } = await supabase.from('despesas').insert([despesa]).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function removerDespesa(id) {
+  const { error } = await supabase.from('despesas').delete().eq('id', id)
+  if (error) throw error
+}

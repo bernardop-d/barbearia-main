@@ -5,7 +5,7 @@ import {
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { COLORS, CARD, INPUT } from '../theme'
-import { getAgendamentos, atualizarStatus, atualizarAgendamento, removerAgendamento } from '../services/supabase'
+import { getAgendamentos, atualizarStatus, atualizarAgendamento, removerAgendamento, criarAgendamento } from '../services/supabase'
 import { STATUS_LABEL } from '../constants'
 
 function formatMoeda(v) {
@@ -37,6 +37,19 @@ export default function AgendaScreen({ navigation }) {
   const [busca, setBusca]               = useState('')
   const [expanded, setExpanded]         = useState(null)
 
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={() => navigation.navigate('EditarAgendamento', {})}
+          style={{ marginRight: 16 }}
+        >
+          <Ionicons name="add-circle-outline" size={24} color={COLORS.green} />
+        </TouchableOpacity>
+      ),
+    })
+  }, [navigation])
+
   const fetchData = useCallback(async () => {
     try {
       const data = await getAgendamentos()
@@ -66,9 +79,38 @@ export default function AgendaScreen({ navigation }) {
     return r.sort((a, b) => new Date(b.data) - new Date(a.data))
   }, [agendamentos, filtro, busca])
 
-  async function handleStatus(id, status) {
-    try { await atualizarStatus(id, status); await fetchData() }
-    catch { Alert.alert('Erro', 'Não foi possível atualizar o status. Tente novamente.') }
+  async function reagendarMensal(agendamento) {
+    const proxima = new Date(agendamento.data)
+    proxima.setMonth(proxima.getMonth() + 1)
+    try {
+      await criarAgendamento({
+        nome:     agendamento.nome,
+        servico:  agendamento.servico,
+        preco:    agendamento.preco,
+        data:     proxima.toISOString(),
+        whatsapp: agendamento.whatsapp || '',
+        status:   'confirmado',
+      })
+      Alert.alert('Reagendado!', `Próximo agendamento de ${agendamento.nome} criado para ${formatDataLonga(proxima)}.`)
+      await fetchData()
+    } catch { Alert.alert('Erro', 'Não foi possível criar o próximo agendamento.') }
+  }
+
+  async function handleStatus(id, status, agendamento) {
+    try {
+      await atualizarStatus(id, status)
+      await fetchData()
+      if (status === 'finalizado' && agendamento?.servico === 'Plano Mensal') {
+        Alert.alert(
+          'Reagendar Plano Mensal?',
+          `${agendamento.nome} tem Plano Mensal. Criar o agendamento do próximo mês automaticamente?`,
+          [
+            { text: 'Não', style: 'cancel' },
+            { text: 'Reagendar', onPress: () => reagendarMensal(agendamento) },
+          ]
+        )
+      }
+    } catch { Alert.alert('Erro', 'Não foi possível atualizar o status. Tente novamente.') }
   }
 
   async function handlePago(id, pago) {
@@ -158,7 +200,7 @@ export default function AgendaScreen({ navigation }) {
               agendamento={a}
               expanded={expanded === a.id}
               onToggle={() => setExpanded(prev => prev === a.id ? null : a.id)}
-              onStatus={handleStatus}
+              onStatus={(id, status) => handleStatus(id, status, a)}
               onPago={handlePago}
               onEditar={() => navigation.navigate('EditarAgendamento', { agendamento: a })}
               onRemover={handleRemover}
