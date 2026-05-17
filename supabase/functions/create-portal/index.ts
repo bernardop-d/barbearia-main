@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
     const { data: barb } = await supabase
       .from('barbearias')
       .select('stripe_customer_id')
-      .eq('user_id', user.id)
+      .eq('owner_id', user.id)
       .maybeSingle()
 
     if (!barb?.stripe_customer_id) {

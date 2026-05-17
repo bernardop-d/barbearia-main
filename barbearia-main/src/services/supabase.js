@@ -336,3 +336,19 @@ export async function criarDespesa(despesa) {
   if (error) throw error
   return data
 }
+
+// ─── Push admin (notificações pro barbeiro) ──────────────────────────────────
+export async function salvarBarbeiroPush(barbearia_id, subscription) {
+  const { error } = await supabase
+    .from('barbeiro_push_subscriptions')
+    .insert([{ barbearia_id, subscription }])
+  if (error) throw error
+}
+
+export async function removerBarbeiroPush(endpoint) {
+  const { error } = await supabase
+    .from('barbeiro_push_subscriptions')
+    .delete()
+    .filter('subscription->>endpoint', 'eq', endpoint)
+  if (error) throw error
+}

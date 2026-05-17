@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
     const { data: barb } = await supabase
       .from('barbearias')
       .select('id, nome, stripe_customer_id')
-      .eq('user_id', user.id)
+      .eq('owner_id', user.id)
       .maybeSingle()
 
     if (!barb) return new Response('Barbearia não encontrada', { status: 404, headers: corsHeaders })
