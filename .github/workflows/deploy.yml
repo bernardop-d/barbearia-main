@@ -29,6 +29,8 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_STRIPE_PRICE_MENSAL: ${{ secrets.VITE_STRIPE_PRICE_MENSAL }}
+          VITE_STRIPE_PRICE_ANUAL: ${{ secrets.VITE_STRIPE_PRICE_ANUAL }}
 
       # Build booking site
       - name: Install booking dependencies

@@ -119,6 +119,43 @@ export async function desbloquearDia(data) {
   if (error) throw error
 }
 
+// ─── Stripe ─────────────────────────────────────────────────────────────────
+export async function criarCheckout(priceId) {
+  const { data: { session } } = await supabase.auth.getSession()
+  const base = window.location.href.replace(/[^/]*$/, '').replace(/\/?$/, '/')
+  const resp = await fetch(`${supabaseUrl}/functions/v1/create-checkout`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({
+      price_id:    priceId,
+      success_url: `${base}?assinatura=ok`,
+      cancel_url:  `${base}upgrade`,
+    }),
+  })
+  if (!resp.ok) throw new Error('Erro ao iniciar checkout')
+  const { url } = await resp.json()
+  return url
+}
+
+export async function abrirPortal() {
+  const { data: { session } } = await supabase.auth.getSession()
+  const base = window.location.href.replace(/[^/]*$/, '').replace(/\/?$/, '/')
+  const resp = await fetch(`${supabaseUrl}/functions/v1/create-portal`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({ return_url: base }),
+  })
+  if (!resp.ok) throw new Error('Erro ao abrir portal')
+  const { url } = await resp.json()
+  return url
+}
+
 // ─── Barbearia atual ────────────────────────────────────────────────────────
 export async function verificarSlug(slug) {
   const { data } = await supabase.from('barbearias').select('id').eq('slug', slug).maybeSingle()
@@ -141,7 +178,7 @@ export async function getBarbeariaAtual() {
   if (!user) return null
   const { data } = await supabase
     .from('barbearias')
-    .select('id, nome')
+    .select('id, nome, subscription_status, trial_ends_at, subscription_ends_at, stripe_customer_id')
     .eq('user_id', user.id)
     .maybeSingle()
   return data ?? null

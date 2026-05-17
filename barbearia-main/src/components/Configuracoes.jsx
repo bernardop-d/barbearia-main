@@ -5,16 +5,18 @@ import {
   getServicosAdmin, criarServico, atualizarServico, removerServico,
   getConfigAdmin, setConfigAdmin,
   getDiasBloqueados, bloquearDia, desbloquearDia,
+  abrirPortal, criarCheckout,
 } from '../services/supabase'
 import { formatarMoeda } from '../utils/formatters'
 import { Spinner } from './Icons'
 import { hojeISO } from '../utils/formatters'
 
 const ABAS = [
-  { id: 'barbearia', label: 'Barbearia' },
-  { id: 'servicos',  label: 'Serviços' },
-  { id: 'horarios',  label: 'Horários' },
-  { id: 'bloqueio',  label: 'Dias bloqueados' },
+  { id: 'barbearia',  label: 'Barbearia' },
+  { id: 'assinatura', label: 'Assinatura' },
+  { id: 'servicos',   label: 'Serviços' },
+  { id: 'horarios',   label: 'Horários' },
+  { id: 'bloqueio',   label: 'Dias bloqueados' },
 ]
 
 export default function Configuracoes() {
@@ -49,10 +51,11 @@ export default function Configuracoes() {
         ))}
       </div>
 
-      {aba === 'barbearia' && <TabBarbearia bid={bid} />}
-      {aba === 'servicos'  && <TabServicos  bid={bid} />}
-      {aba === 'horarios'  && <TabHorarios  bid={bid} />}
-      {aba === 'bloqueio'  && <TabBloqueio />}
+      {aba === 'barbearia'  && <TabBarbearia  bid={bid} />}
+      {aba === 'assinatura' && <TabAssinatura barbearia={barbearia} />}
+      {aba === 'servicos'   && <TabServicos   bid={bid} />}
+      {aba === 'horarios'   && <TabHorarios   bid={bid} />}
+      {aba === 'bloqueio'   && <TabBloqueio />}
     </div>
   )
 }
@@ -126,6 +129,113 @@ function TabBarbearia({ bid }) {
         {saving ? 'Salvando...' : 'Salvar'}
       </button>
     </form>
+  )
+}
+
+// ─── Tab: Assinatura ───────────────────────────────────────────────────────
+
+const STATUS_LABEL = {
+  trial:    { label: 'Período de teste', cls: 'text-blade-400' },
+  active:   { label: 'Ativa',            cls: 'text-emerald-400' },
+  past_due: { label: 'Pagamento pendente', cls: 'text-orange-400' },
+  canceled: { label: 'Cancelada',        cls: 'text-red-400' },
+}
+
+function TabAssinatura({ barbearia }) {
+  const [loading, setLoading] = useState(false)
+  const [error,   setError]   = useState('')
+
+  const status = barbearia?.subscription_status || 'trial'
+  const info   = STATUS_LABEL[status] || STATUS_LABEL.trial
+
+  const diasTrial = barbearia?.trial_ends_at
+    ? Math.max(0, Math.ceil((new Date(barbearia.trial_ends_at) - new Date()) / 86400000))
+    : null
+
+  const proxRenovacao = barbearia?.subscription_ends_at
+    ? new Date(barbearia.subscription_ends_at).toLocaleDateString('pt-BR')
+    : null
+
+  async function handlePortal() {
+    setLoading(true)
+    setError('')
+    try {
+      const url = await abrirPortal()
+      window.location.href = url
+    } catch {
+      setError('Erro ao abrir portal. Tente novamente.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleUpgrade(priceId) {
+    setLoading(true)
+    setError('')
+    try {
+      const url = await criarCheckout(priceId)
+      window.location.href = url
+    } catch {
+      setError('Erro ao iniciar checkout. Tente novamente.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="card flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <p className="text-ink-400 text-xs uppercase tracking-wider">Status</p>
+          <p className={`font-semibold text-sm ${info.cls}`}>{info.label}</p>
+        </div>
+
+        {status === 'trial' && diasTrial !== null && (
+          <div className="flex items-center justify-between">
+            <p className="text-ink-400 text-xs uppercase tracking-wider">Dias restantes</p>
+            <p className={`font-semibold text-sm ${diasTrial <= 3 ? 'text-orange-400' : 'text-white'}`}>
+              {diasTrial} {diasTrial === 1 ? 'dia' : 'dias'}
+            </p>
+          </div>
+        )}
+
+        {proxRenovacao && (
+          <div className="flex items-center justify-between">
+            <p className="text-ink-400 text-xs uppercase tracking-wider">
+              {status === 'active' ? 'Próxima cobrança' : 'Encerra em'}
+            </p>
+            <p className="text-white text-sm">{proxRenovacao}</p>
+          </div>
+        )}
+      </div>
+
+      {error && <p className="text-red-400 text-sm">{error}</p>}
+
+      {status === 'active' && barbearia?.stripe_customer_id && (
+        <button onClick={handlePortal} disabled={loading} className="btn-primary disabled:opacity-50">
+          {loading ? 'Abrindo...' : 'Gerenciar assinatura'}
+        </button>
+      )}
+
+      {(status === 'trial' || status === 'past_due' || status === 'canceled') && (
+        <div className="flex flex-col gap-3">
+          <button
+            onClick={() => handleUpgrade(import.meta.env.VITE_STRIPE_PRICE_ANUAL)}
+            disabled={loading}
+            className="btn-primary disabled:opacity-50"
+          >
+            {loading ? 'Redirecionando...' : 'Assinar Anual — R$490/ano'}
+          </button>
+          <button
+            onClick={() => handleUpgrade(import.meta.env.VITE_STRIPE_PRICE_MENSAL)}
+            disabled={loading}
+            className="w-full py-3 rounded-xl border border-ink-600 text-ink-300 text-sm font-medium hover:border-ink-500 transition-all disabled:opacity-50"
+          >
+            Assinar Mensal — R$49/mês
+          </button>
+        </div>
+      )}
+    </div>
   )
 }
 
