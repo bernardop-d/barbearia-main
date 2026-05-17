@@ -9,6 +9,7 @@ import {
   getAgendamentos, buscarConfig, salvarConfig,
   getServicosCustom, criarServico, removerServico,
 } from '../services/supabase'
+import { useBarbearia } from '../context/BarbeiariaContext'
 import { SERVICOS, HORARIOS } from '../constants'
 
 function formatMoeda(v) {
@@ -18,6 +19,9 @@ function formatMoeda(v) {
 const HORAS_ALMOCO = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
 
 export default function AdminConfigScreen() {
+  const { barbearia } = useBarbearia()
+  const bid = barbearia?.id ?? null
+
   const [agendamentos, setAgendamentos]     = useState([])
   const [aceitarAgen, setAceitarAgen]       = useState(true)
 
@@ -33,15 +37,15 @@ export default function AdminConfigScreen() {
 
   const carregarDados = useCallback(async () => {
     getAgendamentos().then(d => setAgendamentos(d || []))
-    buscarConfig('almoco').then(v => {
+    buscarConfig('almoco', bid).then(v => {
       if (v) {
         setAlmocoAtivo(v.ativo ?? false)
         setAlmocoInicio(v.inicio ?? 12)
         setAlmocoFim(v.fim ?? 13)
       }
     })
-    getServicosCustom().then(setServicosCustom)
-  }, [])
+    getServicosCustom(bid).then(setServicosCustom)
+  }, [bid])
 
   useEffect(() => { carregarDados() }, [carregarDados])
 
@@ -67,7 +71,7 @@ export default function AdminConfigScreen() {
   async function salvarAlmoco() {
     setSalvandoAlmoco(true)
     try {
-      await salvarConfig('almoco', { ativo: almocoAtivo, inicio: almocoInicio, fim: almocoFim })
+      await salvarConfig('almoco', { ativo: almocoAtivo, inicio: almocoInicio, fim: almocoFim }, bid)
       Alert.alert('Salvo', 'Horário de almoço atualizado.')
     } catch {
       Alert.alert('Erro', 'Não foi possível salvar.')
@@ -88,7 +92,7 @@ export default function AdminConfigScreen() {
       })
       setNovoServico({ label: '', desc: '', preco: '' })
       setModalServico(false)
-      getServicosCustom().then(setServicosCustom)
+      getServicosCustom(bid).then(setServicosCustom)
     } catch {
       Alert.alert('Erro', 'Não foi possível criar o serviço.')
     } finally {
@@ -102,7 +106,7 @@ export default function AdminConfigScreen() {
       {
         text: 'Remover', style: 'destructive',
         onPress: async () => {
-          try { await removerServico(id); getServicosCustom().then(setServicosCustom) }
+          try { await removerServico(id); getServicosCustom(bid).then(setServicosCustom) }
           catch { Alert.alert('Erro', 'Não foi possível remover.') }
         },
       },

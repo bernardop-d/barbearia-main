@@ -190,25 +190,26 @@ export async function desbloquearDia(data) {
 }
 
 // ─── Config ──────────────────────────────────────────────────────────────────
-export async function buscarConfig(key) {
-  const { data } = await supabase.from('config').select('value').eq('key', key).maybeSingle()
+export async function buscarConfig(key, barbearia_id = null) {
+  let q = supabase.from('config').select('value').eq('key', key)
+  if (barbearia_id) q = q.eq('barbearia_id', barbearia_id)
+  const { data } = await q.maybeSingle()
   return data?.value ?? null
 }
 
-export async function salvarConfig(key, value) {
+export async function salvarConfig(key, value, barbearia_id = null) {
+  const row = barbearia_id ? { key, value, barbearia_id } : { key, value }
   const { error } = await supabase
     .from('config')
-    .upsert({ key, value }, { onConflict: 'key' })
+    .upsert(row, { onConflict: 'key,barbearia_id' })
   if (error) throw error
 }
 
 // ─── Serviços customizados ────────────────────────────────────────────────────
-export async function getServicosCustom() {
-  const { data, error } = await supabase
-    .from('servicos')
-    .select('*')
-    .eq('ativo', true)
-    .order('created_at', { ascending: true })
+export async function getServicosCustom(barbearia_id = null) {
+  let q = supabase.from('servicos').select('*').eq('ativo', true).order('created_at', { ascending: true })
+  if (barbearia_id) q = q.eq('barbearia_id', barbearia_id)
+  const { data, error } = await q
   if (error) return []
   return data || []
 }
