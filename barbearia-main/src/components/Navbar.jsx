@@ -1,15 +1,6 @@
 // src/components/Navbar.jsx
 import { useAuth } from '../hooks/useAuth'
-import { HomeIcon, CalendarIcon, PlusIcon, LogoutIcon, PackageIcon, ChartIcon } from './Icons'
-
-function LockIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-    </svg>
-  )
-}
+import { HomeIcon, CalendarIcon, PlusIcon, LogoutIcon, PackageIcon, ChartIcon, SettingsIcon } from './Icons'
 
 export default function Navbar({ activeTab, setActiveTab }) {
   const { logout } = useAuth()
@@ -20,7 +11,7 @@ export default function Navbar({ activeTab, setActiveTab }) {
     { id: 'novo',      label: 'Agendar',  icon: PlusIcon, highlight: true },
     { id: 'estoque',   label: 'Estoque',  icon: PackageIcon },
     { id: 'financeiro',label: 'Finanças', icon: ChartIcon },
-    { id: 'bloqueio',  label: 'Bloquear', icon: LockIcon },
+    { id: 'config',    label: 'Config',   icon: SettingsIcon },
   ]
 
   return (

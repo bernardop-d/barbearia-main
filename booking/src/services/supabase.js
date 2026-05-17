@@ -150,5 +150,8 @@ export async function buscarHorariosOcupados(data, barbearia_id = null) {
   if (barbearia_id) params.p_barbearia_id = barbearia_id
   const { data: rows, error } = await supabase.rpc('horarios_ocupados', params)
   if (error) throw error
-  return (rows || []).map(r => new Date(r.hora).getHours())
+  return (rows || []).map(r => {
+    const d = new Date(r.hora)
+    return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
+  })
 }

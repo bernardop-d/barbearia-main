@@ -119,6 +119,60 @@ export async function desbloquearDia(data) {
   if (error) throw error
 }
 
+// ─── Barbearia atual ────────────────────────────────────────────────────────
+export async function getBarbeariaAtual() {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  const { data } = await supabase
+    .from('barbearias')
+    .select('id, nome')
+    .eq('user_id', user.id)
+    .maybeSingle()
+  return data ?? null
+}
+
+// ─── Serviços (admin) ────────────────────────────────────────────────────────
+export async function getServicosAdmin(barbearia_id = null) {
+  let q = supabase.from('servicos').select('*').order('created_at', { ascending: true })
+  if (barbearia_id) q = q.eq('barbearia_id', barbearia_id)
+  const { data, error } = await q
+  if (error) throw error
+  return data || []
+}
+
+export async function criarServico(servico) {
+  const { data, error } = await supabase.from('servicos').insert([servico]).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function atualizarServico(id, campos) {
+  const { data, error } = await supabase.from('servicos').update(campos).eq('id', id).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function removerServico(id) {
+  const { error } = await supabase.from('servicos').delete().eq('id', id)
+  if (error) throw error
+}
+
+// ─── Config (admin) ──────────────────────────────────────────────────────────
+export async function getConfigAdmin(key, barbearia_id = null) {
+  let q = supabase.from('config').select('value').eq('key', key)
+  if (barbearia_id) q = q.eq('barbearia_id', barbearia_id)
+  const { data } = await q.maybeSingle()
+  return data?.value ?? null
+}
+
+export async function setConfigAdmin(key, value, barbearia_id = null) {
+  const row = barbearia_id ? { key, value, barbearia_id } : { key, value }
+  const { error } = await supabase
+    .from('config')
+    .upsert(row, { onConflict: barbearia_id ? 'key,barbearia_id' : 'key' })
+  if (error) throw error
+}
+
 // ─── Produtos ───────────────────────────────────────────────────────────────
 export async function getProdutos() {
   const { data, error } = await supabase

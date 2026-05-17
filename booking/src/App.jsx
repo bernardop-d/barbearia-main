@@ -16,7 +16,18 @@ const SERVICOS_BASE = [
   { id: 'mensaltinta', label: 'Mensal + Tinta', preco: 100, desc: 'Corte mensal + tinta' },
 ]
 
-const HORARIOS = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
+const HORARIOS_DEFAULT = { inicio: 6, fim: 17, intervalo: 60 }
+
+function gerarSlots(cfg) {
+  const { inicio, fim, intervalo } = { ...HORARIOS_DEFAULT, ...(cfg || {}) }
+  const slots = []
+  for (let m = inicio * 60; m <= fim * 60; m += intervalo) {
+    const h = Math.floor(m / 60)
+    const min = m % 60
+    slots.push(`${String(h).padStart(2,'0')}:${String(min).padStart(2,'0')}`)
+  }
+  return slots
+}
 
 function hojeISO() {
   return new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' })
@@ -66,6 +77,7 @@ export default function App() {
   const [horasOcupadas,   setHorasOcupadas]   = useState([])
   const [diasBloqueados,  setDiasBloqueados]  = useState([])
   const [almocoConfig,    setAlmocoConfig]    = useState(null)
+  const [horariosConfig,  setHorariosConfig]  = useState(null)
   const [loadingSlots,    setLoadingSlots]    = useState(false)
   const [loading,         setLoading]         = useState(false)
   const [error,           setError]           = useState('')
@@ -85,6 +97,7 @@ export default function App() {
     if (loadingBarb) return
     buscarDiasBloqueados(bid).then(setDiasBloqueados)
     buscarConfig('almoco', bid).then(setAlmocoConfig)
+    buscarConfig('horarios', bid).then(setHorariosConfig)
     getServicosCustom(bid).then(custom => {
       if (custom.length > 0) {
         setAllServicos([
@@ -112,14 +125,23 @@ export default function App() {
       .finally(() => setLoadingSlots(false))
   }, [form.data, bid])
 
+  const slots = useMemo(() => gerarSlots(horariosConfig), [horariosConfig])
+
   const slotDesabilitado = useMemo(() => {
-    const agora    = new Date()
-    const ehHoje   = form.data === hojeISO()
-    const horaSP   = parseInt(agora.toLocaleTimeString('pt-BR', { hour: '2-digit', timeZone: 'America/Sao_Paulo', hour12: false }))
-    return (hora) => {
-      if (horasOcupadas.includes(hora)) return true
-      if (ehHoje && hora <= horaSP) return true
-      if (almocoConfig?.ativo && hora >= almocoConfig.inicio && hora < almocoConfig.fim) return true
+    const agora  = new Date()
+    const ehHoje = form.data === hojeISO()
+    const tSP    = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo', hour12: false })
+    const [horaSP, minSP] = tSP.split(':').map(Number)
+    return (slot) => {
+      if (horasOcupadas.includes(slot)) return true
+      if (ehHoje) {
+        const [h, m] = slot.split(':').map(Number)
+        if (h < horaSP || (h === horaSP && m <= minSP)) return true
+      }
+      if (almocoConfig?.ativo) {
+        const slotH = parseInt(slot.split(':')[0])
+        if (slotH >= almocoConfig.inicio && slotH < almocoConfig.fim) return true
+      }
       return false
     }
   }, [horasOcupadas, form.data, almocoConfig])
@@ -131,7 +153,7 @@ export default function App() {
     setError('')
     setLoading(true)
     try {
-      const datetime = new Date(`${form.data}T${String(horaSelecionada).padStart(2, '0')}:00:00`)
+      const datetime = new Date(`${form.data}T${horaSelecionada}:00`)
       const data = await criarAgendamentoPublico({
         nome:         form.nome.trim(),
         servico:      servico.label,
@@ -290,15 +312,15 @@ export default function App() {
                 </div>
               ) : (
                 <div className="grid grid-cols-4 gap-2">
-                  {HORARIOS.map(hora => {
-                    const ocupado = slotDesabilitado(hora)
-                    const ativo   = horaSelecionada === hora
+                  {slots.map(slot => {
+                    const ocupado = slotDesabilitado(slot)
+                    const ativo   = horaSelecionada === slot
                     return (
                       <button
-                        key={hora}
+                        key={slot}
                         type="button"
                         disabled={ocupado}
-                        onClick={() => setHoraSelecionada(hora)}
+                        onClick={() => setHoraSelecionada(slot)}
                         className={`py-3 rounded-xl text-sm font-semibold border transition-all duration-150 active:scale-95
                           ${ocupado
                             ? 'bg-ink-800/30 border-ink-700/50 text-ink-600 cursor-not-allowed line-through'
@@ -307,13 +329,13 @@ export default function App() {
                               : 'bg-ink-800 border-ink-700 text-ink-300 hover:border-blade-500/50 hover:text-blade-400'
                           }`}
                       >
-                        {String(hora).padStart(2, '0')}h
+                        {slot}
                       </button>
                     )
                   })}
                 </div>
               )}
-              {!diasBloqueados.includes(form.data) && !loadingSlots && HORARIOS.every(h => slotDesabilitado(h)) && (
+              {!diasBloqueados.includes(form.data) && !loadingSlots && slots.every(s => slotDesabilitado(s)) && (
                 <p className="text-center text-ink-500 text-xs mt-3">Sem horários disponíveis nessa data. Escolha outro dia.</p>
               )}
             </div>
@@ -335,7 +357,7 @@ export default function App() {
             <div className="card mb-5 flex flex-col gap-2">
               <Row label="Serviço" value={servico.label} />
               <Row label="Data"    value={formatarData(form.data)} />
-              <Row label="Horário" value={`${String(horaSelecionada).padStart(2, '0')}:00`} />
+              <Row label="Horário" value={horaSelecionada || ''} />
               <div className="pt-2 mt-1 border-t border-ink-700 flex items-center justify-between">
                 <span className="text-ink-400 text-xs uppercase tracking-wider">Total</span>
                 <span className="text-blade-400 font-mono font-bold">{formatarMoeda(servico.preco)}</span>

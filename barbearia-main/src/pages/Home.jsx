@@ -4,9 +4,9 @@ import Navbar from '../components/Navbar'
 import Dashboard from '../components/Dashboard'
 import Agenda from '../components/Agenda'
 import AgendamentoForm from '../components/AgendamentoForm'
-import Bloqueio from '../components/Bloqueio'
 import Estoque from '../components/Estoque'
 import Financeiro from '../components/Financeiro'
+import Configuracoes from '../components/Configuracoes'
 import { getAgendamentos, getNomeBarbearia, supabase } from '../services/supabase'
 
 export default function Home() {
@@ -93,8 +93,8 @@ export default function Home() {
               {activeTab === 'financeiro' && (
                 <Financeiro agendamentos={agendamentos} />
               )}
-              {activeTab === 'bloqueio' && (
-                <Bloqueio />
+              {activeTab === 'config' && (
+                <Configuracoes />
               )}
             </>
           )}

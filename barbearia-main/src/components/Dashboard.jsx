@@ -2,6 +2,59 @@
 import { useMemo, memo } from 'react'
 import { formatarMoeda, formatarDataLonga, formatarHora, formatarMes } from '../utils/formatters'
 
+const TZ = 'America/Sao_Paulo'
+
+function GraficoReceita({ agendamentos }) {
+  const dados = useMemo(() => {
+    const hoje = new Date()
+    const hojeStr = hoje.toLocaleDateString('sv-SE', { timeZone: TZ })
+    const dias = Array.from({ length: 14 }, (_, i) => {
+      const d = new Date(hoje)
+      d.setDate(hoje.getDate() - (13 - i))
+      return d.toLocaleDateString('sv-SE', { timeZone: TZ })
+    })
+    const rev = {}
+    for (const a of agendamentos) {
+      if (a.status !== 'finalizado') continue
+      const dia = new Date(a.data).toLocaleDateString('sv-SE', { timeZone: TZ })
+      rev[dia] = (rev[dia] || 0) + Number(a.preco)
+    }
+    return dias.map(d => ({ dia: d, val: rev[d] || 0, isHoje: d === hojeStr }))
+  }, [agendamentos])
+
+  const max = Math.max(...dados.map(d => d.val), 1)
+  if (dados.every(d => d.val === 0)) return null
+
+  return (
+    <div>
+      <h3 className="font-display text-xl text-white tracking-wide mb-3">Receita — 14 dias</h3>
+      <div className="card p-4">
+        <div className="flex items-end gap-0.5 h-20">
+          {dados.map((d, i) => (
+            <div
+              key={i}
+              title={`${d.dia}: ${formatarMoeda(d.val)}`}
+              className="flex-1 rounded-sm"
+              style={{
+                height: `${Math.max((d.val / max) * 80, d.val > 0 ? 3 : 0)}px`,
+                backgroundColor: d.isHoje
+                  ? '#00e87a'
+                  : d.val > 0
+                    ? 'rgba(0,232,122,0.3)'
+                    : 'rgba(255,255,255,0.04)',
+              }}
+            />
+          ))}
+        </div>
+        <div className="flex justify-between mt-1.5">
+          <span className="text-ink-600 text-[9px]">14 dias atrás</span>
+          <span className="text-blade-400 text-[9px]">hoje</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Dashboard({ agendamentos, onNovoAgendamento }) {
   // Single-pass: calcula todas as stats em um único loop
   const stats = useMemo(() => {
@@ -64,6 +117,8 @@ export default function Dashboard({ agendamentos, onNovoAgendamento }) {
         <StatCard label="Confirmados" value={stats.confirmados} icon="✅" />
         <StatCard label="Finalizados" value={stats.finalizados} icon="🏆" />
       </div>
+
+      <GraficoReceita agendamentos={agendamentos} />
 
       {/* Próximos agendamentos */}
       <div>

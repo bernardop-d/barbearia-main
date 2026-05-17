@@ -1,9 +1,11 @@
 import 'react-native-url-polyfill/auto'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { createClient } from '@supabase/supabase-js'
+import Constants from 'expo-constants'
 
-const SUPABASE_URL = 'https://phhvzajbomoyedbwebgl.supabase.co'
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBoaHZ6YWpib21veWVkYndlYmdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4NzMwMDAsImV4cCI6MjA4OTQ0OTAwMH0.ZW72jJcFcgiDnH76ZdqWt-bFcDNNM1eYbr344h6yvpA'
+const extra = Constants.expoConfig?.extra ?? {}
+const SUPABASE_URL      = extra.supabaseUrl     || 'https://phhvzajbomoyedbwebgl.supabase.co'
+const SUPABASE_ANON_KEY = extra.supabaseAnonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBoaHZ6YWpib21veWVkYndlYmdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4NzMwMDAsImV4cCI6MjA4OTQ0OTAwMH0.ZW72jJcFcgiDnH76ZdqWt-bFcDNNM1eYbr344h6yvpA'
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
