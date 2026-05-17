@@ -1,7 +1,7 @@
 // src/components/Agenda.jsx
 import { useState, useMemo, useCallback, useEffect, memo } from 'react'
 import { atualizarStatus, atualizarAgendamento, removerAgendamento } from '../services/supabase'
-import { SearchIcon, ChevronIcon, WhatsAppIcon } from './Icons'
+import { SearchIcon, ChevronIcon, WhatsAppIcon, StarIcon } from './Icons'
 import { formatarMoeda, formatarDataCurta, formatarHora, formatarDataLonga } from '../utils/formatters'
 import { STATUS_LABEL } from '../constants'
 import AgendamentoForm from './AgendamentoForm'
@@ -270,6 +270,23 @@ const AgendamentoCard = memo(function AgendamentoCard({ agendamento, removendo, 
           >
             {agendamento.pago ? 'Pago — desfazer' : 'Marcar como pago'}
           </button>
+
+          {/* Avaliação (só para finalizados com WhatsApp) */}
+          {agendamento.status === 'finalizado' && agendamento.whatsapp && (
+            <button
+              onClick={() => {
+                const numero = agendamento.whatsapp.replace(/\D/g, '')
+                const msg = encodeURIComponent(
+                  `Olá, ${agendamento.nome}! Obrigado pela visita à *${nomeBarbearia}*. 😊\n\n` +
+                  `Se ficou satisfeito, nos ajude avaliando:`
+                )
+                window.open(`https://wa.me/55${numero}?text=${msg}`, '_blank')
+              }}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-medium bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 active:scale-95 transition-all"
+            >
+              <StarIcon /> Pedir avaliação
+            </button>
+          )}
 
           {/* Ações */}
           <div className="flex gap-2">

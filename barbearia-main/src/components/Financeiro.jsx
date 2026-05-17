@@ -4,6 +4,76 @@ import { getVendas, getDespesas, criarDespesa } from '../services/supabase'
 import { formatarMoeda } from '../utils/formatters'
 import { Spinner } from './Icons'
 
+// ─── Gráfico mensal ──────────────────────────────────────────────────────────
+function GraficoMensal({ agendamentos }) {
+  const [vendasChart, setVendasChart]   = useState([])
+  const [despesasChart, setDespesasChart] = useState([])
+
+  useEffect(() => {
+    const seisM = new Date(); seisM.setMonth(seisM.getMonth() - 5); seisM.setDate(1)
+    const de = seisM.toISOString().slice(0, 10) + 'T00:00:00'
+    Promise.all([getVendas(de, null), getDespesas(de, null)])
+      .then(([v, d]) => { setVendasChart(v); setDespesasChart(d) })
+      .catch(() => {})
+  }, [])
+
+  const meses = useMemo(() => {
+    const lista = []
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date()
+      d.setMonth(d.getMonth() - i)
+      lista.push({ key: d.toISOString().slice(0, 7), label: d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '') })
+    }
+    return lista
+  }, [])
+
+  const dados = useMemo(() => {
+    return meses.map(({ key, label }) => {
+      const receita = agendamentos
+        .filter(a => a.status === 'finalizado' && a.data.slice(0, 7) === key)
+        .reduce((s, a) => s + Number(a.preco), 0)
+      const vendas = vendasChart
+        .filter(v => v.data.slice(0, 7) === key)
+        .reduce((s, v) => s + Number(v.total), 0)
+      const despesas = despesasChart
+        .filter(d => d.data.slice(0, 7) === key)
+        .reduce((s, d) => s + Number(d.valor), 0)
+      return { label, receita: receita + vendas, despesas, lucro: receita + vendas - despesas }
+    })
+  }, [meses, agendamentos, vendasChart, despesasChart])
+
+  const maxVal = Math.max(...dados.map(d => Math.max(d.receita, d.despesas)), 1)
+
+  return (
+    <div className="card">
+      <p className="text-xs text-ink-400 uppercase tracking-wider mb-4">Últimos 6 meses</p>
+      <div className="flex items-end gap-1.5 h-28">
+        {dados.map(d => (
+          <div key={d.label} className="flex-1 flex flex-col items-center gap-0.5">
+            <div className="w-full flex gap-0.5 items-end" style={{ height: 80 }}>
+              <div
+                className="flex-1 bg-blade-500/60 rounded-t-sm transition-all"
+                style={{ height: `${Math.max(4, (d.receita / maxVal) * 80)}px` }}
+                title={`Receita: ${formatarMoeda(d.receita)}`}
+              />
+              <div
+                className="flex-1 bg-red-500/50 rounded-t-sm transition-all"
+                style={{ height: `${Math.max(4, (d.despesas / maxVal) * 80)}px` }}
+                title={`Despesas: ${formatarMoeda(d.despesas)}`}
+              />
+            </div>
+            <span className="text-[9px] text-ink-500 uppercase">{d.label}</span>
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-4 mt-3">
+        <span className="flex items-center gap-1 text-[10px] text-ink-400"><span className="w-2 h-2 rounded-sm bg-blade-500/60 inline-block" />Receita</span>
+        <span className="flex items-center gap-1 text-[10px] text-ink-400"><span className="w-2 h-2 rounded-sm bg-red-500/50 inline-block" />Despesas</span>
+      </div>
+    </div>
+  )
+}
+
 const TZ = 'America/Sao_Paulo'
 
 function toISO(d) {
@@ -198,6 +268,8 @@ export default function Financeiro({ agendamentos }) {
               </div>
             </div>
           )}
+
+          <GraficoMensal agendamentos={agendamentos} />
 
           {agFiltrados.length > 0 && (
             <div>

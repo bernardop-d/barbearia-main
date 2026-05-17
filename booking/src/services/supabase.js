@@ -143,15 +143,50 @@ export async function buscarDiasBloqueados(barbearia_id = null) {
   return (data || []).map(r => r.data)
 }
 
-export async function buscarHorariosOcupados(data, barbearia_id = null) {
+export async function buscarHorariosOcupados(data, barbearia_id = null, barbeiro_id = null) {
   const inicio = new Date(data + 'T00:00:00').toISOString()
   const fim    = new Date(data + 'T23:59:59').toISOString()
   const params = { p_inicio: inicio, p_fim: fim }
   if (barbearia_id) params.p_barbearia_id = barbearia_id
+  if (barbeiro_id)  params.p_barbeiro_id  = barbeiro_id
   const { data: rows, error } = await supabase.rpc('horarios_ocupados', params)
   if (error) throw error
   return (rows || []).map(r => {
     const d = new Date(r.hora)
     return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
   })
+}
+
+export async function buscarBarbeiros(barbearia_id) {
+  if (!barbearia_id) return []
+  const { data } = await supabase
+    .from('barbeiros')
+    .select('id, nome')
+    .eq('barbearia_id', barbearia_id)
+    .eq('ativo', true)
+    .order('created_at', { ascending: true })
+  return data || []
+}
+
+export async function cancelarAgendamento(id) {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  const resp = await fetch(`${supabaseUrl}/functions/v1/cancelar-agendamento`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id }),
+  })
+  if (!resp.ok) {
+    const { error } = await resp.json().catch(() => ({}))
+    throw new Error(error || 'Erro ao cancelar')
+  }
+  return true
+}
+
+export async function salvarPushSubscription(agendamento_id, barbearia_id, subscription, lembrete_em) {
+  await supabase.from('push_subscriptions').insert([{
+    agendamento_id,
+    barbearia_id,
+    subscription,
+    lembrete_em,
+  }])
 }

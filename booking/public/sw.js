@@ -28,3 +28,21 @@ self.addEventListener('fetch', e => {
       .catch(() => caches.match(e.request))
   )
 })
+
+self.addEventListener('push', e => {
+  const data = e.data?.json() || {}
+  e.waitUntil(
+    self.registration.showNotification(data.title || 'Lembrete de agendamento', {
+      body:    data.body || 'Seu horário está chegando em 1 hora!',
+      icon:    '/booking/icon.svg',
+      badge:   '/booking/icon.svg',
+      vibrate: [200, 100, 200],
+      data:    { url: data.url || '/booking/' },
+    })
+  )
+})
+
+self.addEventListener('notificationclick', e => {
+  e.notification.close()
+  e.waitUntil(clients.openWindow(e.notification.data?.url || '/booking/'))
+})

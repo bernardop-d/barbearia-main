@@ -6,6 +6,7 @@ import Agenda from '../components/Agenda'
 import AgendamentoForm from '../components/AgendamentoForm'
 import Estoque from '../components/Estoque'
 import Financeiro from '../components/Financeiro'
+import Clientes from '../components/Clientes'
 import Configuracoes from '../components/Configuracoes'
 import { getAgendamentos, getNomeBarbearia, supabase } from '../services/supabase'
 
@@ -92,6 +93,9 @@ export default function Home() {
               )}
               {activeTab === 'financeiro' && (
                 <Financeiro agendamentos={agendamentos} />
+              )}
+              {activeTab === 'clientes' && (
+                <Clientes agendamentos={agendamentos} />
               )}
               {activeTab === 'config' && (
                 <Configuracoes />

@@ -157,3 +157,84 @@ alter table barbearias
 update barbearias
   set trial_ends_at = now() + interval '14 days'
   where trial_ends_at is null;
+
+-- ============================================================
+-- Barbeiros (múltiplos profissionais por barbearia)
+-- ============================================================
+create table if not exists barbeiros (
+  id           uuid primary key default gen_random_uuid(),
+  barbearia_id uuid references barbearias(id) on delete cascade,
+  nome         text not null,
+  ativo        boolean not null default true,
+  created_at   timestamptz default now()
+);
+alter table barbeiros enable row level security;
+
+do $$ begin
+  if not exists (select 1 from pg_policies where tablename='barbeiros' and policyname='barbeiros leitura publica') then
+    create policy "barbeiros leitura publica" on barbeiros for select using (true);
+  end if;
+  if not exists (select 1 from pg_policies where tablename='barbeiros' and policyname='barbeiros admin') then
+    create policy "barbeiros admin" on barbeiros for all using (auth.role() = 'authenticated');
+  end if;
+end $$;
+
+create index if not exists idx_barbeiros_barbearia_id on barbeiros(barbearia_id);
+
+-- Barbeiro nos agendamentos
+alter table agendamentos add column if not exists barbeiro_id   uuid references barbeiros(id) on delete set null;
+alter table agendamentos add column if not exists barbeiro_nome text;
+create index if not exists idx_agendamentos_barbeiro_id on agendamentos(barbeiro_id);
+
+-- ============================================================
+-- Push subscriptions (lembretes PWA)
+-- ============================================================
+create table if not exists push_subscriptions (
+  id             uuid primary key default gen_random_uuid(),
+  agendamento_id uuid references agendamentos(id) on delete cascade,
+  barbearia_id   uuid references barbearias(id) on delete cascade,
+  subscription   jsonb not null,
+  lembrete_em    timestamptz not null,
+  enviado        boolean not null default false,
+  created_at     timestamptz default now()
+);
+alter table push_subscriptions enable row level security;
+
+do $$ begin
+  if not exists (select 1 from pg_policies where tablename='push_subscriptions' and policyname='push insert publico') then
+    create policy "push insert publico" on push_subscriptions for insert with check (true);
+  end if;
+  if not exists (select 1 from pg_policies where tablename='push_subscriptions' and policyname='push admin') then
+    create policy "push admin" on push_subscriptions for all using (auth.role() = 'authenticated');
+  end if;
+end $$;
+
+-- ============================================================
+-- Cancelamento público de agendamentos
+-- UUID (122 bits aleatórios) serve como token de acesso seguro
+-- ============================================================
+do $$ begin
+  if not exists (select 1 from pg_policies where tablename='agendamentos' and policyname='cancelar publico') then
+    create policy "cancelar publico" on agendamentos
+      for update
+      using (data > now())
+      with check (status = 'cancelado');
+  end if;
+end $$;
+
+-- ============================================================
+-- horarios_ocupados atualizado com suporte a barbeiro_id
+-- ============================================================
+create or replace function horarios_ocupados(
+  p_inicio      timestamptz,
+  p_fim         timestamptz,
+  p_barbearia_id uuid default null,
+  p_barbeiro_id  uuid default null
+)
+returns table(hora timestamptz) language sql security definer as $$
+  select data as hora from agendamentos
+  where data between p_inicio and p_fim
+    and status != 'cancelado'
+    and (p_barbearia_id is null or barbearia_id = p_barbearia_id)
+    and (p_barbeiro_id  is null or barbeiro_id  = p_barbeiro_id);
+$$;

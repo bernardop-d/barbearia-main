@@ -6,6 +6,7 @@ import {
   getConfigAdmin, setConfigAdmin,
   getDiasBloqueados, bloquearDia, desbloquearDia,
   abrirPortal, criarCheckout,
+  getBarbeiros, criarBarbeiro, atualizarBarbeiro, removerBarbeiro,
 } from '../services/supabase'
 import { formatarMoeda } from '../utils/formatters'
 import { Spinner } from './Icons'
@@ -13,6 +14,7 @@ import { hojeISO } from '../utils/formatters'
 
 const ABAS = [
   { id: 'barbearia',  label: 'Barbearia' },
+  { id: 'barbeiros',  label: 'Barbeiros' },
   { id: 'assinatura', label: 'Assinatura' },
   { id: 'servicos',   label: 'Serviços' },
   { id: 'horarios',   label: 'Horários' },
@@ -52,6 +54,7 @@ export default function Configuracoes() {
       </div>
 
       {aba === 'barbearia'  && <TabBarbearia  bid={bid} />}
+      {aba === 'barbeiros'  && <TabBarbeiros  bid={bid} />}
       {aba === 'assinatura' && <TabAssinatura barbearia={barbearia} />}
       {aba === 'servicos'   && <TabServicos   bid={bid} />}
       {aba === 'horarios'   && <TabHorarios   bid={bid} />}
@@ -129,6 +132,115 @@ function TabBarbearia({ bid }) {
         {saving ? 'Salvando...' : 'Salvar'}
       </button>
     </form>
+  )
+}
+
+// ─── Tab: Barbeiros ────────────────────────────────────────────────────────
+
+function TabBarbeiros({ bid }) {
+  const [barbeiros, setBarbeiros] = useState([])
+  const [loading,   setLoading]   = useState(true)
+  const [nome,      setNome]      = useState('')
+  const [saving,    setSaving]    = useState(false)
+  const [toast,     setToast]     = useState('')
+
+  const carregar = useCallback(async () => {
+    try { setBarbeiros(await getBarbeiros(bid)) } catch {} finally { setLoading(false) }
+  }, [bid])
+
+  useEffect(() => { carregar() }, [carregar])
+
+  function showToast(msg) { setToast(msg); setTimeout(() => setToast(''), 2500) }
+
+  async function handleAdicionar(e) {
+    e.preventDefault()
+    if (!nome.trim()) return
+    setSaving(true)
+    try {
+      await criarBarbeiro({ nome: nome.trim(), barbearia_id: bid })
+      setNome('')
+      await carregar()
+      showToast('Barbeiro adicionado!')
+    } catch { showToast('Erro ao adicionar.') }
+    finally { setSaving(false) }
+  }
+
+  async function handleToggle(b) {
+    try {
+      await atualizarBarbeiro(b.id, { ativo: !b.ativo })
+      await carregar()
+      showToast(b.ativo ? 'Desativado.' : 'Ativado.')
+    } catch { showToast('Erro.') }
+  }
+
+  async function handleRemover(id) {
+    try {
+      await removerBarbeiro(id)
+      await carregar()
+      showToast('Removido.')
+    } catch { showToast('Erro ao remover.') }
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {toast && (
+        <div className="bg-blade-500/10 border border-blade-500/30 rounded-xl px-4 py-2 text-blade-400 text-sm text-center">
+          {toast}
+        </div>
+      )}
+
+      <p className="text-ink-400 text-xs">
+        Se cadastrar mais de 1 barbeiro, o cliente poderá escolher quem atende ao agendar.
+      </p>
+
+      <form onSubmit={handleAdicionar} className="flex gap-2">
+        <input
+          className="input flex-1"
+          placeholder="Nome do barbeiro"
+          value={nome}
+          maxLength={60}
+          onChange={e => setNome(e.target.value)}
+        />
+        <button type="submit" disabled={saving || !nome.trim()} className="btn-primary max-w-fit px-4 disabled:opacity-40">
+          + Add
+        </button>
+      </form>
+
+      {loading ? (
+        <div className="flex justify-center py-6"><Spinner size={24} /></div>
+      ) : barbeiros.length === 0 ? (
+        <div className="card text-center py-8">
+          <p className="text-ink-400 text-sm">Nenhum barbeiro cadastrado</p>
+          <p className="text-ink-500 text-xs mt-1">No modo padrão (1 barbeiro) os clientes não precisam escolher.</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {barbeiros.map(b => (
+            <div key={b.id} className={`card flex items-center gap-3 ${!b.ativo ? 'opacity-50' : ''}`}>
+              <div className="w-9 h-9 bg-ink-700 rounded-xl flex items-center justify-center font-display text-blade-400 shrink-0">
+                {b.nome[0].toUpperCase()}
+              </div>
+              <p className="text-white text-sm flex-1">{b.nome}</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleToggle(b)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all active:scale-95
+                    ${b.ativo ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-ink-700/40 border-ink-600 text-ink-400'}`}
+                >
+                  {b.ativo ? 'Ativo' : 'Inativo'}
+                </button>
+                <button
+                  onClick={() => handleRemover(b.id)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500/10 border border-red-500/30 text-red-400 active:scale-95 transition-all"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 

@@ -1,6 +1,6 @@
 // src/components/Navbar.jsx
 import { useAuth } from '../hooks/useAuth'
-import { HomeIcon, CalendarIcon, PlusIcon, LogoutIcon, PackageIcon, ChartIcon, SettingsIcon } from './Icons'
+import { HomeIcon, CalendarIcon, PlusIcon, LogoutIcon, PackageIcon, ChartIcon, SettingsIcon, UsersIcon } from './Icons'
 
 export default function Navbar({ activeTab, setActiveTab }) {
   const { logout } = useAuth()
@@ -11,6 +11,7 @@ export default function Navbar({ activeTab, setActiveTab }) {
     { id: 'novo',      label: 'Agendar',  icon: PlusIcon, highlight: true },
     { id: 'estoque',   label: 'Estoque',  icon: PackageIcon },
     { id: 'financeiro',label: 'Finanças', icon: ChartIcon },
+    { id: 'clientes',  label: 'Clientes', icon: UsersIcon },
     { id: 'config',    label: 'Config',   icon: SettingsIcon },
   ]
 

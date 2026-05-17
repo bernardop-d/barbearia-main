@@ -89,7 +89,7 @@ export async function getNomeBarbearia() {
   const { data } = await supabase
     .from('barbearias')
     .select('nome')
-    .eq('user_id', user.id)
+    .eq('owner_id', user.id)
     .maybeSingle()
   return data?.nome ?? null
 }
@@ -179,7 +179,7 @@ export async function getBarbeariaAtual() {
   const { data } = await supabase
     .from('barbearias')
     .select('id, nome, subscription_status, trial_ends_at, subscription_ends_at, stripe_customer_id')
-    .eq('user_id', user.id)
+    .eq('owner_id', user.id)
     .maybeSingle()
   return data ?? null
 }
@@ -285,6 +285,32 @@ export async function criarVenda(venda) {
     .single()
   if (error) throw error
   return data
+}
+
+// ─── Barbeiros ──────────────────────────────────────────────────────────────
+export async function getBarbeiros(barbearia_id = null) {
+  let q = supabase.from('barbeiros').select('*').order('created_at', { ascending: true })
+  if (barbearia_id) q = q.eq('barbearia_id', barbearia_id)
+  const { data, error } = await q
+  if (error) throw error
+  return data || []
+}
+
+export async function criarBarbeiro(barbeiro) {
+  const { data, error } = await supabase.from('barbeiros').insert([barbeiro]).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function atualizarBarbeiro(id, campos) {
+  const { data, error } = await supabase.from('barbeiros').update(campos).eq('id', id).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function removerBarbeiro(id) {
+  const { error } = await supabase.from('barbeiros').delete().eq('id', id)
+  if (error) throw error
 }
 
 // ─── Despesas ────────────────────────────────────────────────────────────────

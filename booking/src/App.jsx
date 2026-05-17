@@ -4,7 +4,8 @@ import {
   buscarDiasBloqueados, buscarConfig, getServicosCustom,
   buscarMeusAgendamentos, getAgendamentos,
   atualizarStatus, removerAgendamento, login, logout,
-  getBarbeariaPorSlug,
+  getBarbeariaPorSlug, buscarBarbeiros, cancelarAgendamento,
+  salvarPushSubscription,
 } from './services/supabase'
 
 const SERVICOS_BASE = [
@@ -72,6 +73,8 @@ export default function App() {
   const [step,            setStep]            = useState(1)
   const [allServicos,     setAllServicos]     = useState(SERVICOS_BASE)
   const [servico,         setServico]         = useState(SERVICOS_BASE[0])
+  const [barbeiros,       setBarbeiros]       = useState([])
+  const [barbeiroSel,     setBarbeiroSel]     = useState(null)
   const [form,            setForm]            = useState({ nome: '', whatsapp: '', data: hojeISO() })
   const [horaSelecionada, setHoraSelecionada] = useState(null)
   const [horasOcupadas,   setHorasOcupadas]   = useState([])
@@ -100,6 +103,7 @@ export default function App() {
     buscarConfig('almoco',    bid).then(setAlmocoConfig)
     buscarConfig('horarios',  bid).then(setHorariosConfig)
     buscarConfig('whatsapp',  bid).then(setWhatsappBarbearia)
+    buscarBarbeiros(bid).then(setBarbeiros)
     getServicosCustom(bid).then(custom => {
       if (custom.length > 0) {
         setAllServicos([
@@ -121,11 +125,11 @@ export default function App() {
     if (!form.data) return
     setHoraSelecionada(null)
     setLoadingSlots(true)
-    buscarHorariosOcupados(form.data, bid)
+    buscarHorariosOcupados(form.data, bid, barbeiroSel?.id ?? null)
       .then(setHorasOcupadas)
       .catch(() => setHorasOcupadas([]))
       .finally(() => setLoadingSlots(false))
-  }, [form.data, bid])
+  }, [form.data, bid, barbeiroSel])
 
   const slots = useMemo(() => gerarSlots(horariosConfig), [horariosConfig])
 
@@ -163,6 +167,8 @@ export default function App() {
         data:         datetime.toISOString(),
         whatsapp:     form.whatsapp.replace(/\D/g, ''),
         barbearia_id: bid,
+        barbeiro_id:  barbeiroSel?.id ?? null,
+        barbeiro_nome: barbeiroSel?.nome ?? null,
       })
       setResultado(data)
       setStep('success')
@@ -178,7 +184,7 @@ export default function App() {
   }
 
   function resetar() {
-    setStep(1); setServico(allServicos[0])
+    setStep(1); setServico(allServicos[0]); setBarbeiroSel(null)
     setForm({ nome: '', whatsapp: '', data: hojeISO() })
     setHoraSelecionada(null); setResultado(null); setError('')
   }
@@ -257,7 +263,7 @@ export default function App() {
                 <button
                   key={s.id}
                   type="button"
-                  onClick={() => { setServico(s); setStep(2) }}
+                  onClick={() => { setServico(s); setStep(barbeiros.length > 1 ? 'barbeiro' : 2) }}
                   className="flex items-center gap-3 p-4 rounded-xl border transition-all duration-200 active:scale-95 text-left bg-ink-800 border-ink-700 hover:border-blade-500/40 hover:bg-blade-500/5 group"
                 >
                   <div className="flex-1">
@@ -272,12 +278,43 @@ export default function App() {
           </div>
         )}
 
+        {/* STEP 1.5: Barbeiro (se houver múltiplos) */}
+        {step === 'barbeiro' && (
+          <div className="animate-fade-in">
+            <button type="button" onClick={() => setStep(1)} className="flex items-center gap-3 w-full p-3 rounded-xl bg-blade-500/8 border border-blade-500/20 mb-5 text-left">
+              <div className="flex-1">
+                <p className="text-blade-400 text-sm font-semibold">{servico.label}</p>
+                <p className="text-ink-400 text-xs">{formatarMoeda(servico.preco)} · toque para alterar</p>
+              </div>
+              <span className="text-ink-400 text-xs font-medium">alterar</span>
+            </button>
+            <h2 className="text-xl font-bold text-white mb-1">Com quem?</h2>
+            <p className="text-ink-400 text-sm mb-5">Escolha o profissional</p>
+            <div className="flex flex-col gap-3">
+              {barbeiros.map(b => (
+                <button
+                  key={b.id}
+                  type="button"
+                  onClick={() => { setBarbeiroSel(b); setStep(2) }}
+                  className="flex items-center gap-4 p-4 rounded-xl border bg-ink-800 border-ink-700 hover:border-blade-500/40 hover:bg-blade-500/5 transition-all active:scale-95 text-left group"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-blade-500/10 border border-blade-500/20 flex items-center justify-center font-display text-blade-400 text-lg">
+                    {b.nome[0].toUpperCase()}
+                  </div>
+                  <p className="font-semibold text-sm text-white group-hover:text-blade-400 flex-1">{b.nome}</p>
+                  <span className="text-ink-600 group-hover:text-blade-400 text-lg transition-colors">›</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* STEP 2: Data e Hora */}
         {step === 2 && (
           <div className="animate-fade-in">
             <button
               type="button"
-              onClick={() => setStep(1)}
+              onClick={() => setStep(barbeiros.length > 1 ? 'barbeiro' : 1)}
               className="flex items-center gap-3 w-full p-3 rounded-xl bg-blade-500/8 border border-blade-500/20 mb-5 text-left"
             >
               <div className="flex-1">
@@ -358,6 +395,7 @@ export default function App() {
           <form onSubmit={handleSubmit} className="animate-fade-in">
             <div className="card mb-5 flex flex-col gap-2">
               <Row label="Serviço" value={servico.label} />
+              {barbeiroSel && <Row label="Barbeiro" value={barbeiroSel.nome} />}
               <Row label="Data"    value={formatarData(form.data)} />
               <Row label="Horário" value={horaSelecionada || ''} />
               <div className="pt-2 mt-1 border-t border-ink-700 flex items-center justify-between">
@@ -550,9 +588,7 @@ function MeusAgendamentos({ onClose, barbearia }) {
                         </div>
                       </div>
                       {futuro && (
-                        <p className="text-ink-500 text-xs mt-3 pt-3 border-t border-ink-700">
-                          Para cancelar, entre em contato com a barbearia.
-                        </p>
+                        <CancelarBtn id={a.id} onCancelado={buscar.bind(null, { preventDefault: () => {} })} />
                       )}
                     </div>
                   )
@@ -562,6 +598,42 @@ function MeusAgendamentos({ onClose, barbearia }) {
           )
         )}
       </div>
+    </div>
+  )
+}
+
+function CancelarBtn({ id, onCancelado }) {
+  const [loading,   setLoading]   = useState(false)
+  const [cancelado, setCancelado] = useState(false)
+  const [erro,      setErro]      = useState('')
+
+  async function handleCancelar() {
+    if (!window.confirm('Confirmar cancelamento deste agendamento?')) return
+    setLoading(true)
+    setErro('')
+    try {
+      await cancelarAgendamento(id)
+      setCancelado(true)
+      onCancelado && onCancelado()
+    } catch (e) {
+      setErro(e.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (cancelado) return <p className="text-red-400 text-xs mt-3 pt-3 border-t border-ink-700">Agendamento cancelado.</p>
+
+  return (
+    <div className="mt-3 pt-3 border-t border-ink-700">
+      {erro && <p className="text-red-400 text-xs mb-2">{erro}</p>}
+      <button
+        onClick={handleCancelar}
+        disabled={loading}
+        className="w-full py-2 rounded-lg text-xs font-medium bg-red-500/10 border border-red-500/30 text-red-400 active:scale-95 transition-all disabled:opacity-40"
+      >
+        {loading ? 'Cancelando...' : 'Cancelar agendamento'}
+      </button>
     </div>
   )
 }
@@ -877,6 +949,7 @@ function AdminCard({ agendamento, nomeBarbearia, onStatus, onRemover }) {
 
 // ─── Success screen ───────────────────────────────────────────────────────────
 function SuccessScreen({ resultado, nomeBarbearia, whatsappBarbearia, onNovo, onMeusHorarios }) {
+  const [pushStatus, setPushStatus] = useState('idle') // idle | loading | ok | denied | unsupported
   const data = new Date(resultado.data)
   const dataFmt = data.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }).replace(/^./, s => s.toUpperCase())
   const horaFmt = data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
@@ -884,6 +957,32 @@ function SuccessScreen({ resultado, nomeBarbearia, whatsappBarbearia, onNovo, on
     `Olá, *${nomeBarbearia}*! Confirmei meu agendamento online:\n\n` +
     `*${resultado.nome}* — ${resultado.servico}\n${dataFmt} às ${horaFmt}`
   )
+
+  async function ativarLembrete() {
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+      setPushStatus('unsupported'); return
+    }
+    setPushStatus('loading')
+    const perm = await Notification.requestPermission()
+    if (perm !== 'granted') { setPushStatus('denied'); return }
+    try {
+      const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY
+      const reg = await navigator.serviceWorker.ready
+      if (vapidKey) {
+        const sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: vapidKey,
+        })
+        const lembreteEm = new Date(data.getTime() - 60 * 60 * 1000).toISOString()
+        await salvarPushSubscription(resultado.id, resultado.barbearia_id, sub.toJSON(), lembreteEm)
+      }
+      reg.showNotification('Agendamento confirmado!', {
+        body: `${resultado.servico} — ${dataFmt} às ${horaFmt}`,
+        icon: '/booking/icon.svg',
+      })
+      setPushStatus('ok')
+    } catch { setPushStatus('denied') }
+  }
 
   return (
     <div className="min-h-screen bg-ink flex flex-col">
@@ -924,6 +1023,19 @@ function SuccessScreen({ resultado, nomeBarbearia, whatsappBarbearia, onNovo, on
               Enviar confirmação no WhatsApp
             </a>
           )}
+          {pushStatus === 'idle' && (
+            <button
+              onClick={ativarLembrete}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-ink-600 text-ink-300 text-sm font-medium hover:border-ink-500 hover:text-white transition-colors mb-3"
+            >
+              🔔 Ativar lembrete 1h antes
+            </button>
+          )}
+          {pushStatus === 'loading' && <p className="text-ink-400 text-xs text-center mb-3">Ativando lembrete...</p>}
+          {pushStatus === 'ok' && <p className="text-emerald-400 text-xs text-center mb-3">✓ Lembrete ativado!</p>}
+          {pushStatus === 'denied' && <p className="text-ink-500 text-xs text-center mb-3">Permissão negada. Ative nas configurações do navegador.</p>}
+          {pushStatus === 'unsupported' && <p className="text-ink-500 text-xs text-center mb-3">Lembretes não disponíveis neste navegador.</p>}
+
           <button onClick={onNovo} className="btn-primary mb-3">Fazer outro agendamento</button>
           {resultado.whatsapp && (
             <button

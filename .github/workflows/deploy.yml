@@ -31,6 +31,7 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_STRIPE_PRICE_MENSAL: ${{ secrets.VITE_STRIPE_PRICE_MENSAL }}
           VITE_STRIPE_PRICE_ANUAL: ${{ secrets.VITE_STRIPE_PRICE_ANUAL }}
+          VITE_VAPID_PUBLIC_KEY: ${{ secrets.VITE_VAPID_PUBLIC_KEY }}
 
       # Build booking site
       - name: Install booking dependencies
