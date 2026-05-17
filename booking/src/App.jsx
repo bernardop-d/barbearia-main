@@ -165,6 +165,7 @@ export default function App() {
     return (
       <AdminSection
         user={adminUser}
+        bid={bid}
         nomeBarbearia={nomeBarbearia}
         onLogout={async () => { await logout(); setAdminUser(null) }}
         onClose={() => setView('booking')}
@@ -536,9 +537,9 @@ function MeusAgendamentos({ onClose, barbearia }) {
 }
 
 // ─── Admin section ────────────────────────────────────────────────────────────
-function AdminSection({ user, nomeBarbearia, onLogout, onClose }) {
+function AdminSection({ user, bid, nomeBarbearia, onLogout, onClose }) {
   return user ? (
-    <AdminPanel user={user} nomeBarbearia={nomeBarbearia} onLogout={onLogout} onClose={onClose} />
+    <AdminPanel user={user} bid={bid} nomeBarbearia={nomeBarbearia} onLogout={onLogout} onClose={onClose} />
   ) : (
     <AdminLogin nomeBarbearia={nomeBarbearia} onClose={onClose} />
   )
@@ -604,7 +605,7 @@ const STATUS_CFG = {
   cancelado:  { label: 'Cancelado',  bg: 'bg-red-500/10',    border: 'border-red-500/30',    text: 'text-red-400' },
 }
 
-function AdminPanel({ user, nomeBarbearia, onLogout, onClose }) {
+function AdminPanel({ user, bid, nomeBarbearia, onLogout, onClose }) {
   const [agendamentos, setAgendamentos] = useState([])
   const [loading,      setLoading]      = useState(true)
   const [error,        setError]        = useState('')
@@ -614,7 +615,7 @@ function AdminPanel({ user, nomeBarbearia, onLogout, onClose }) {
   async function fetchData() {
     try {
       setError('')
-      const data = await getAgendamentos()
+      const data = await getAgendamentos(bid)
       setAgendamentos(data)
     } catch {
       setError('Erro ao carregar agendamentos. Verifique sua conexão.')

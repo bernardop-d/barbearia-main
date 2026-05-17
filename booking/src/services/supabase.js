@@ -23,12 +23,14 @@ export async function getBarbeariaPorSlug(slug) {
 }
 
 // ─── Admin ────────────────────────────────────────────────────────────────────
-export async function getAgendamentos() {
-  const { data, error } = await supabase
+export async function getAgendamentos(barbearia_id = null) {
+  let q = supabase
     .from('agendamentos')
     .select('*')
     .order('data', { ascending: false })
     .limit(300)
+  if (barbearia_id) q = q.eq('barbearia_id', barbearia_id)
+  const { data, error } = await q
   if (error) throw error
   return data || []
 }
