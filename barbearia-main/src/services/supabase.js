@@ -120,6 +120,22 @@ export async function desbloquearDia(data) {
 }
 
 // ─── Barbearia atual ────────────────────────────────────────────────────────
+export async function verificarSlug(slug) {
+  const { data } = await supabase.from('barbearias').select('id').eq('slug', slug).maybeSingle()
+  return !data
+}
+
+export async function criarBarbeariaAtual(nome, slug) {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Não autenticado')
+  const { data, error } = await supabase
+    .from('barbearias')
+    .insert([{ nome, slug, user_id: user.id }])
+    .select().single()
+  if (error) throw error
+  return data
+}
+
 export async function getBarbeariaAtual() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null

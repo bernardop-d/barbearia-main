@@ -1,14 +1,18 @@
 // src/App.jsx
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
-import Login from './pages/Login'
-import Home  from './pages/Home'
+import Login      from './pages/Login'
+import Home       from './pages/Home'
+import Landing    from './pages/Landing'
+import Cadastro   from './pages/Cadastro'
+import Termos     from './pages/Termos'
+import Privacidade from './pages/Privacidade'
 
-// Rota protegida — redireciona para login se não autenticado
+// Rota protegida — mostra Landing quando não autenticado
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth()
   if (loading) return <Splash />
-  return user ? children : <Navigate to="/login" replace />
+  return user ? children : <Landing />
 }
 
 function Splash() {
@@ -23,7 +27,10 @@ function Splash() {
 export default function App() {
   return (
     <Routes>
-      <Route path="/login" element={<Login />} />
+      <Route path="/login"       element={<Login />} />
+      <Route path="/cadastro"    element={<Cadastro />} />
+      <Route path="/termos"      element={<Termos />} />
+      <Route path="/privacidade" element={<Privacidade />} />
       <Route path="/*" element={
         <PrivateRoute>
           <Home />

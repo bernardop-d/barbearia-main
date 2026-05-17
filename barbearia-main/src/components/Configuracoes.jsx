@@ -11,13 +11,14 @@ import { Spinner } from './Icons'
 import { hojeISO } from '../utils/formatters'
 
 const ABAS = [
+  { id: 'barbearia', label: 'Barbearia' },
   { id: 'servicos',  label: 'Serviços' },
   { id: 'horarios',  label: 'Horários' },
   { id: 'bloqueio',  label: 'Dias bloqueados' },
 ]
 
 export default function Configuracoes() {
-  const [aba,       setAba]       = useState('servicos')
+  const [aba,       setAba]       = useState('barbearia')
   const [barbearia, setBarbearia] = useState(null)
 
   useEffect(() => {
@@ -48,10 +49,83 @@ export default function Configuracoes() {
         ))}
       </div>
 
+      {aba === 'barbearia' && <TabBarbearia bid={bid} />}
       {aba === 'servicos'  && <TabServicos  bid={bid} />}
       {aba === 'horarios'  && <TabHorarios  bid={bid} />}
       {aba === 'bloqueio'  && <TabBloqueio />}
     </div>
+  )
+}
+
+// ─── Tab: Barbearia ────────────────────────────────────────────────────────
+
+function TabBarbearia({ bid }) {
+  const [whatsapp, setWhatsapp] = useState('')
+  const [loading,  setLoading]  = useState(true)
+  const [saving,   setSaving]   = useState(false)
+  const [toast,    setToast]    = useState('')
+
+  useEffect(() => {
+    getConfigAdmin('whatsapp', bid).then(v => {
+      if (v) setWhatsapp(v)
+      setLoading(false)
+    })
+  }, [bid])
+
+  async function handleSalvar(e) {
+    e.preventDefault()
+    setSaving(true)
+    try {
+      await setConfigAdmin('whatsapp', whatsapp.replace(/\D/g, ''), bid)
+      setToast('WhatsApp salvo! Clientes verão o botão de contato ao agendar.')
+    } catch {
+      setToast('Erro ao salvar.')
+    } finally {
+      setSaving(false)
+      setTimeout(() => setToast(''), 3000)
+    }
+  }
+
+  if (loading) return <div className="flex justify-center py-8"><Spinner size={24} /></div>
+
+  return (
+    <form onSubmit={handleSalvar} className="flex flex-col gap-4">
+      {toast && (
+        <div className="bg-blade-500/10 border border-blade-500/30 rounded-xl px-4 py-2 text-blade-400 text-sm text-center">
+          {toast}
+        </div>
+      )}
+
+      <div className="card flex flex-col gap-4">
+        <div>
+          <label className="block text-xs text-ink-400 font-medium mb-1 uppercase tracking-wider">
+            WhatsApp da barbearia
+          </label>
+          <p className="text-ink-500 text-xs mb-2">
+            Aparece como botão de confirmação no agendamento do cliente
+          </p>
+          <input
+            type="tel"
+            className="input"
+            placeholder="(11) 99999-9999"
+            value={whatsapp}
+            maxLength={15}
+            onChange={e => {
+              const digits = e.target.value.replace(/\D/g, '').slice(0, 11)
+              let masked = digits
+              if (digits.length > 2)  masked = `(${digits.slice(0,2)}) ${digits.slice(2)}`
+              if (digits.length > 7)  masked = `(${digits.slice(0,2)}) ${digits.slice(2,7)}-${digits.slice(7)}`
+              if (digits.length > 10) masked = `(${digits.slice(0,2)}) ${digits.slice(2,7)}-${digits.slice(7,11)}`
+              setWhatsapp(masked)
+            }}
+          />
+        </div>
+      </div>
+
+      <button type="submit" className="btn-primary" disabled={saving}>
+        {saving ? 'Salvando...' : 'Salvar'}
+      </button>
+    </form>
   )
 }
 
