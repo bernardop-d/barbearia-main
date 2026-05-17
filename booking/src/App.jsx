@@ -18,7 +18,9 @@ const SERVICOS_BASE = [
 
 const HORARIOS = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
 
-function hojeISO() { return new Date().toISOString().slice(0, 10) }
+function hojeISO() {
+  return new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' })
+}
 
 function formatarData(dateStr) {
   if (!dateStr) return ''
@@ -111,11 +113,12 @@ export default function App() {
   }, [form.data, bid])
 
   const slotDesabilitado = useMemo(() => {
-    const agora  = new Date()
-    const ehHoje = form.data === hojeISO()
+    const agora    = new Date()
+    const ehHoje   = form.data === hojeISO()
+    const horaSP   = parseInt(agora.toLocaleTimeString('pt-BR', { hour: '2-digit', timeZone: 'America/Sao_Paulo', hour12: false }))
     return (hora) => {
       if (horasOcupadas.includes(hora)) return true
-      if (ehHoje && hora <= agora.getHours()) return true
+      if (ehHoje && hora <= horaSP) return true
       if (almocoConfig?.ativo && hora >= almocoConfig.inicio && hora < almocoConfig.fim) return true
       return false
     }

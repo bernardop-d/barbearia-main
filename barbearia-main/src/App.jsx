@@ -14,7 +14,7 @@ function PrivateRoute({ children }) {
 function Splash() {
   return (
     <div className="min-h-screen bg-ink flex flex-col items-center justify-center gap-4">
-      <div className="font-display text-5xl text-gradient tracking-wider">BARBERPRO</div>
+      <div className="font-display text-5xl text-gradient tracking-wider">Your Barber</div>
       <div className="w-8 h-1 bg-blade-500 rounded-full animate-pulse-slow" />
     </div>
   )

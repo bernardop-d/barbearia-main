@@ -65,7 +65,7 @@ export default function Login() {
           <div className="inline-flex items-center justify-center w-20 h-20 bg-blade-500/10 border border-blade-500/30 rounded-3xl mb-6">
             <ScissorsIcon />
           </div>
-          <h1 className="font-display text-5xl text-gradient tracking-widest mb-1">DUNGABARBER</h1>
+          <h1 className="font-display text-5xl text-gradient tracking-widest mb-1">Your Barber</h1>
           <p className="text-ink-400 text-sm">Área do proprietário</p>
         </div>
 
@@ -143,7 +143,7 @@ export default function Login() {
         </div>
 
         <p className="text-center text-ink-600 text-xs mt-6">
-          DUNGABARBER © {new Date().getFullYear()} — Acesso do proprietário
+          Your Barber © {new Date().getFullYear()} — Acesso do proprietário
         </p>
       </div>
     </div>

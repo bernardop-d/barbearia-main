@@ -5,13 +5,20 @@ import Dashboard from '../components/Dashboard'
 import Agenda from '../components/Agenda'
 import AgendamentoForm from '../components/AgendamentoForm'
 import Bloqueio from '../components/Bloqueio'
-import { getAgendamentos, supabase } from '../services/supabase'
+import Estoque from '../components/Estoque'
+import Financeiro from '../components/Financeiro'
+import { getAgendamentos, getNomeBarbearia, supabase } from '../services/supabase'
 
 export default function Home() {
-  const [activeTab,     setActiveTab]     = useState('dashboard')
-  const [agendamentos,  setAgendamentos]  = useState([])
-  const [loading,       setLoading]       = useState(true)
-  const [toast,         setToast]         = useState(null)
+  const [activeTab,      setActiveTab]      = useState('dashboard')
+  const [agendamentos,   setAgendamentos]   = useState([])
+  const [nomeBarbearia,  setNomeBarbearia]  = useState('Your Barber')
+  const [loading,        setLoading]        = useState(true)
+  const [toast,          setToast]          = useState(null)
+
+  useEffect(() => {
+    getNomeBarbearia().then(nome => { if (nome) setNomeBarbearia(nome) })
+  }, [])
 
   const fetchAgendamentos = useCallback(async () => {
     try {
@@ -71,6 +78,7 @@ export default function Home() {
                 <Agenda
                   agendamentos={agendamentos}
                   onRefresh={fetchAgendamentos}
+                  nomeBarbearia={nomeBarbearia}
                 />
               )}
               {activeTab === 'novo' && (
@@ -78,6 +86,12 @@ export default function Home() {
                   onSuccess={handleNovoSuccess}
                   onCancel={() => setActiveTab('dashboard')}
                 />
+              )}
+              {activeTab === 'estoque' && (
+                <Estoque showToast={showToast} />
+              )}
+              {activeTab === 'financeiro' && (
+                <Financeiro agendamentos={agendamentos} />
               )}
               {activeTab === 'bloqueio' && (
                 <Bloqueio />

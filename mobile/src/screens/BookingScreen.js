@@ -262,7 +262,7 @@ export default function BookingScreen({ navigation }) {
           }
         </TouchableOpacity>
 
-        <Text style={s.footer}>DUNGABARBER © {new Date().getFullYear()}</Text>
+        <Text style={s.footer}>Your Barber © {new Date().getFullYear()}</Text>
       </ScrollView>
     </KeyboardAvoidingView>
   )

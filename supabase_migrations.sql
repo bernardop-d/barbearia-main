@@ -85,3 +85,25 @@ create table if not exists despesas (
 
 alter table despesas enable row level security;
 create policy "despesas autenticado" on despesas for all using (auth.role() = 'authenticated');
+
+-- ============================================================
+-- Alertas de estoque mínimo (view auxiliar)
+-- ============================================================
+create or replace view produtos_abaixo_minimo as
+  select * from produtos
+  where ativo = true and estoque_atual <= estoque_minimo;
+
+-- ============================================================
+-- Campo motivo em dias_bloqueados (se não existir)
+-- ============================================================
+alter table dias_bloqueados
+  add column if not exists motivo text not null default '';
+
+-- ============================================================
+-- Índices úteis para performance
+-- ============================================================
+create index if not exists idx_agendamentos_data         on agendamentos(data);
+create index if not exists idx_agendamentos_whatsapp     on agendamentos(whatsapp);
+create index if not exists idx_agendamentos_barbearia_id on agendamentos(barbearia_id);
+create index if not exists idx_vendas_data               on vendas(data);
+create index if not exists idx_despesas_data             on despesas(data);

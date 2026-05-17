@@ -1,5 +1,5 @@
 // src/components/Agenda.jsx
-import { useState, useMemo, useCallback, memo } from 'react'
+import { useState, useMemo, useCallback, useEffect, memo } from 'react'
 import { atualizarStatus, atualizarAgendamento, removerAgendamento } from '../services/supabase'
 import { SearchIcon, ChevronIcon, WhatsAppIcon } from './Icons'
 import { formatarMoeda, formatarDataCurta, formatarHora, formatarDataLonga } from '../utils/formatters'
@@ -13,11 +13,16 @@ const FILTROS = [
   { id: 'cancelado',  label: 'Cancelados' },
 ]
 
-export default function Agenda({ agendamentos, onRefresh }) {
+const PAGE_SIZE = 20
+
+export default function Agenda({ agendamentos, onRefresh, nomeBarbearia = 'Your Barber' }) {
   const [filtro,      setFiltro]      = useState('todos')
   const [editando,    setEditando]    = useState(null)
   const [removendoId, setRemovendoId] = useState(null)
   const [busca,       setBusca]       = useState('')
+  const [pagina,      setPagina]      = useState(1)
+
+  useEffect(() => { setPagina(1) }, [filtro, busca])
 
   const lista = useMemo(() => {
     let resultado = [...agendamentos]
@@ -30,6 +35,9 @@ export default function Agenda({ agendamentos, onRefresh }) {
     }
     return resultado.sort((a, b) => new Date(b.data) - new Date(a.data))
   }, [agendamentos, filtro, busca])
+
+  const listaVis = useMemo(() => lista.slice(0, pagina * PAGE_SIZE), [lista, pagina])
+  const temMais = lista.length > listaVis.length
 
   const handleStatus = useCallback(async (id, novoStatus) => {
     try {
@@ -70,7 +78,7 @@ export default function Agenda({ agendamentos, onRefresh }) {
     const horaFmt = formatarHora(agendamento.data)
     const msg = encodeURIComponent(
       `Olá, ${agendamento.nome}!\n\n` +
-      `Seu agendamento na *DUNGABARBER* está confirmado.\n\n` +
+      `Seu agendamento na *${nomeBarbearia}* está confirmado.\n\n` +
       `*Serviço:* ${agendamento.servico}\n` +
       `*Data:* ${dataFmt}\n` +
       `*Horário:* ${horaFmt}\n` +
@@ -134,7 +142,7 @@ export default function Agenda({ agendamentos, onRefresh }) {
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          {lista.map(agendamento => (
+          {listaVis.map(agendamento => (
             <AgendamentoCard
               key={agendamento.id}
               agendamento={agendamento}
@@ -144,8 +152,17 @@ export default function Agenda({ agendamentos, onRefresh }) {
               onEditar={setEditando}
               onRemover={handleRemover}
               onWhatsApp={handleWhatsApp}
+              nomeBarbearia={nomeBarbearia}
             />
           ))}
+          {temMais && (
+            <button
+              onClick={() => setPagina(p => p + 1)}
+              className="w-full py-3 rounded-2xl text-sm font-medium bg-ink-700/40 border border-ink-600 text-ink-400 hover:text-ink-300 hover:border-ink-500 transition-all active:scale-95"
+            >
+              Mostrar mais ({lista.length - listaVis.length} restantes)
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -159,7 +176,7 @@ function dentroDeUmaHora(dataStr) {
   return diff > 0 && diff <= 60 * 60 * 1000
 }
 
-const AgendamentoCard = memo(function AgendamentoCard({ agendamento, removendo, onStatus, onPago, onEditar, onRemover, onWhatsApp }) {
+const AgendamentoCard = memo(function AgendamentoCard({ agendamento, removendo, onStatus, onPago, onEditar, onRemover, onWhatsApp, nomeBarbearia = 'Your Barber' }) {
   const [expanded, setExpanded] = useState(false)
   const statusInfo = STATUS_LABEL[agendamento.status] || STATUS_LABEL.pendente
   const alertar    = agendamento.status === 'confirmado' && dentroDeUmaHora(agendamento.data)
@@ -169,7 +186,7 @@ const AgendamentoCard = memo(function AgendamentoCard({ agendamento, removendo, 
     const horaFmt = formatarHora(agendamento.data)
     const numero  = agendamento.whatsapp?.replace(/\D/g, '')
     const msg     = encodeURIComponent(
-      `Olá, ${agendamento.nome}! Passando para lembrar que seu horário na *DUNGABARBER* é hoje às *${horaFmt}*. Até logo!`
+      `Olá, ${agendamento.nome}! Passando para lembrar que seu horário na *${nomeBarbearia}* é hoje às *${horaFmt}*. Até logo!`
     )
     const url = numero
       ? `https://wa.me/55${numero}?text=${msg}`

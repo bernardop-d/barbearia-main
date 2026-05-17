@@ -83,6 +83,17 @@ export async function removerAgendamento(id) {
   if (error) throw error
 }
 
+export async function getNomeBarbearia() {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  const { data } = await supabase
+    .from('barbearias')
+    .select('nome')
+    .eq('user_id', user.id)
+    .maybeSingle()
+  return data?.nome ?? null
+}
+
 // ─── Dias bloqueados ────────────────────────────────────────────────────────
 export async function getDiasBloqueados() {
   const { data, error } = await supabase
@@ -106,4 +117,89 @@ export async function desbloquearDia(data) {
     .delete()
     .eq('data', data)
   if (error) throw error
+}
+
+// ─── Produtos ───────────────────────────────────────────────────────────────
+export async function getProdutos() {
+  const { data, error } = await supabase
+    .from('produtos')
+    .select('*')
+    .eq('ativo', true)
+    .order('nome')
+  if (error) throw error
+  return data || []
+}
+
+export async function criarProduto(produto) {
+  const { data, error } = await supabase
+    .from('produtos')
+    .insert([produto])
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function atualizarProduto(id, campos) {
+  const { data, error } = await supabase
+    .from('produtos')
+    .update(campos)
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function ajustarEstoqueDb(id, delta) {
+  const { error } = await supabase.rpc('ajustar_estoque', { p_id: id, p_delta: delta })
+  if (error) throw error
+}
+
+// ─── Vendas ─────────────────────────────────────────────────────────────────
+export async function getVendas(de = null, ate = null) {
+  let q = supabase
+    .from('vendas')
+    .select('*')
+    .order('data', { ascending: false })
+    .limit(200)
+  if (de)  q = q.gte('data', de)
+  if (ate) q = q.lte('data', ate)
+  const { data, error } = await q
+  if (error) throw error
+  return data || []
+}
+
+export async function criarVenda(venda) {
+  const { data, error } = await supabase
+    .from('vendas')
+    .insert([venda])
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+// ─── Despesas ────────────────────────────────────────────────────────────────
+export async function getDespesas(de = null, ate = null) {
+  let q = supabase
+    .from('despesas')
+    .select('*')
+    .order('data', { ascending: false })
+    .limit(200)
+  if (de)  q = q.gte('data', de)
+  if (ate) q = q.lte('data', ate)
+  const { data, error } = await q
+  if (error) throw error
+  return data || []
+}
+
+export async function criarDespesa(despesa) {
+  const { data, error } = await supabase
+    .from('despesas')
+    .insert([despesa])
+    .select()
+    .single()
+  if (error) throw error
+  return data
 }
