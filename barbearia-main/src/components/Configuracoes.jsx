@@ -53,7 +53,7 @@ export default function Configuracoes() {
         ))}
       </div>
 
-      {aba === 'barbearia'  && <TabBarbearia  bid={bid} />}
+      {aba === 'barbearia'  && <TabBarbearia  bid={bid} barbearia={barbearia} />}
       {aba === 'barbeiros'  && <TabBarbeiros  bid={bid} />}
       {aba === 'assinatura' && <TabAssinatura barbearia={barbearia} />}
       {aba === 'servicos'   && <TabServicos   bid={bid} />}
@@ -65,11 +65,15 @@ export default function Configuracoes() {
 
 // ─── Tab: Barbearia ────────────────────────────────────────────────────────
 
-function TabBarbearia({ bid }) {
+function TabBarbearia({ bid, barbearia }) {
   const [whatsapp, setWhatsapp] = useState('')
   const [loading,  setLoading]  = useState(true)
   const [saving,   setSaving]   = useState(false)
   const [toast,    setToast]    = useState('')
+
+  const bookingUrl = barbearia?.slug
+    ? `${window.location.origin}/booking/?b=${barbearia.slug}`
+    : null
 
   useEffect(() => {
     getConfigAdmin('whatsapp', bid).then(v => {
@@ -127,6 +131,20 @@ function TabBarbearia({ bid }) {
           />
         </div>
       </div>
+
+      {bookingUrl && (
+        <div className="bg-ink-800/50 border border-ink-600 rounded-xl p-4">
+          <p className="text-xs text-ink-400 uppercase tracking-wider mb-2">Seu link de agendamento</p>
+          <p className="text-blade-400 font-mono text-xs break-all mb-2">{bookingUrl}</p>
+          <button
+            type="button"
+            onClick={() => navigator.clipboard?.writeText(bookingUrl).then(() => setToast('Link copiado!'))}
+            className="text-ink-500 text-xs hover:text-ink-300 transition-colors"
+          >
+            Copiar link
+          </button>
+        </div>
+      )}
 
       <button type="submit" className="btn-primary" disabled={saving}>
         {saving ? 'Salvando...' : 'Salvar'}
