@@ -71,7 +71,7 @@ export default function App() {
   const [adminUser,       setAdminUser]       = useState(null)
 
   const bid           = barbearia?.id ?? null
-  const nomeBarbearia = barbearia?.nome || 'DUNGABARBER'
+  const nomeBarbearia = barbearia?.nome || 'Barbearia'
 
   // Carregar barbearia pelo slug
   useEffect(() => {
@@ -393,9 +393,12 @@ export default function App() {
         )}
       </div>
 
-      <p className="text-center text-ink-600 text-xs pb-6">
-        {nomeBarbearia} © {new Date().getFullYear()} ·{' '}
+      <p className="text-center text-ink-600 text-xs pb-6 space-x-2">
+        <span>{nomeBarbearia} © {new Date().getFullYear()}</span>
+        <span>·</span>
         <button onClick={() => setView('admin')} className="hover:text-ink-400 transition-colors">Admin</button>
+        <span>·</span>
+        <a href="mailto:contato.bernardopd@gmail.com" className="hover:text-ink-400 transition-colors">by BPD</a>
       </p>
     </div>
   )
@@ -437,7 +440,7 @@ function MeusAgendamentos({ onClose, barbearia }) {
       <div className="bg-ink-800 border-b border-ink-700 px-6 py-4">
         <div className="max-w-sm mx-auto flex items-center justify-between">
           <div>
-            <h1 className="font-display text-2xl tracking-widest">{barbearia?.nome || 'DUNGABARBER'}</h1>
+            <h1 className="font-display text-2xl tracking-widest">{barbearia?.nome || 'Barbearia'}</h1>
             <p className="text-ink-400 text-xs">Meus agendamentos</p>
           </div>
           <button onClick={onClose} className="text-ink-400 text-sm hover:text-white transition-colors">← Voltar</button>
@@ -886,7 +889,11 @@ function SuccessScreen({ resultado, nomeBarbearia, onNovo, onMeusHorarios }) {
           )}
         </div>
       </div>
-      <p className="text-center text-ink-600 text-xs pb-6">{nomeBarbearia} © {new Date().getFullYear()}</p>
+      <p className="text-center text-ink-600 text-xs pb-6 space-x-2">
+        <span>{nomeBarbearia} © {new Date().getFullYear()}</span>
+        <span>·</span>
+        <a href="mailto:contato.bernardopd@gmail.com" className="hover:text-ink-400 transition-colors">by BPD</a>
+      </p>
     </div>
   )
 }

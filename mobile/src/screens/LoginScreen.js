@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Image,
+  KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Image, Linking,
 } from 'react-native'
 import { COLORS, INPUT, BTN_PRIMARY, LABEL } from '../theme'
 import { login, signup } from '../services/supabase'
@@ -132,9 +132,11 @@ export default function LoginScreen() {
           </TouchableOpacity>
         </View>
 
-        <Text style={s.footer}>
-          © {new Date().getFullYear()} · Sistema de gestão para barbearias
-        </Text>
+        <TouchableOpacity onPress={() => Linking.openURL('mailto:contato.bernardopd@gmail.com')}>
+          <Text style={s.footer}>
+            © {new Date().getFullYear()} · by BPD
+          </Text>
+        </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   )
