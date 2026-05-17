@@ -10,9 +10,11 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack'
 
 import { Ionicons } from '@expo/vector-icons'
 import { AuthProvider, useAuth } from './src/context/AuthContext'
+import { BarbeiariaProvider, useBarbearia } from './src/context/BarbeiariaContext'
 import { COLORS } from './src/theme'
 
 import LoginScreen           from './src/screens/LoginScreen'
+import OnboardingScreen      from './src/screens/OnboardingScreen'
 import DashboardScreen       from './src/screens/DashboardScreen'
 import AgendaScreen          from './src/screens/AgendaScreen'
 import AgendamentoFormScreen from './src/screens/AgendamentoFormScreen'
@@ -83,13 +85,14 @@ function AdminTabs() {
 }
 
 function RootNavigator() {
-  const { user, loading } = useAuth()
+  const { user, loading: authLoading }                    = useAuth()
+  const { barbearia, setBarbearia, loading: barbLoading } = useBarbearia()
 
   useEffect(() => {
     if (user) registrarPushToken()
   }, [user])
 
-  if (loading) {
+  if (authLoading || (user && barbLoading)) {
     return (
       <View style={s.splash}>
         <ActivityIndicator color={COLORS.green} size="large" />
@@ -97,13 +100,19 @@ function RootNavigator() {
     )
   }
 
-  if (user) return <AdminRoot />
+  if (!user) {
+    return (
+      <Stack.Navigator screenOptions={{ ...SCREEN_OPTIONS, headerShown: false }}>
+        <Stack.Screen name="Login" component={LoginScreen} />
+      </Stack.Navigator>
+    )
+  }
 
-  return (
-    <Stack.Navigator screenOptions={{ ...SCREEN_OPTIONS, headerShown: false }}>
-      <Stack.Screen name="Login" component={LoginScreen} />
-    </Stack.Navigator>
-  )
+  if (!barbearia) {
+    return <OnboardingScreen user={user} onConcluir={setBarbearia} />
+  }
+
+  return <AdminRoot />
 }
 
 function UpdateModal({ visible, onUpdate, onDismiss }) {
@@ -154,6 +163,7 @@ export default function App() {
 
   return (
     <AuthProvider>
+      <BarbeiariaProvider>
       <NavigationContainer>
         <StatusBar style="light" />
         <RootNavigator />
@@ -169,6 +179,7 @@ export default function App() {
           </View>
         )}
       </NavigationContainer>
+      </BarbeiariaProvider>
     </AuthProvider>
   )
 }

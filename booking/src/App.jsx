@@ -4,6 +4,7 @@ import {
   buscarDiasBloqueados, buscarConfig, getServicosCustom,
   buscarMeusAgendamentos, getAgendamentos,
   atualizarStatus, removerAgendamento, login, logout,
+  getBarbeariaPorSlug,
 } from './services/supabase'
 
 const SERVICOS_BASE = [
@@ -50,6 +51,11 @@ function validar(form, horaSelecionada) {
 export default function App() {
   const [view, setView] = useState('booking') // 'booking' | 'meushorarios' | 'admin'
 
+  // barbearia multi-tenant (slug vem de ?b=slug na URL)
+  const [barbearia,       setBarbearia]       = useState(null)
+  const [loadingBarb,     setLoadingBarb]     = useState(true)
+  const slug = new URLSearchParams(window.location.search).get('b')
+
   const [step,            setStep]            = useState(1)
   const [allServicos,     setAllServicos]     = useState(SERVICOS_BASE)
   const [servico,         setServico]         = useState(SERVICOS_BASE[0])
@@ -64,10 +70,20 @@ export default function App() {
   const [resultado,       setResultado]       = useState(null)
   const [adminUser,       setAdminUser]       = useState(null)
 
+  const bid           = barbearia?.id ?? null
+  const nomeBarbearia = barbearia?.nome || 'DUNGABARBER'
+
+  // Carregar barbearia pelo slug
   useEffect(() => {
-    buscarDiasBloqueados().then(setDiasBloqueados)
-    buscarConfig('almoco').then(setAlmocoConfig)
-    getServicosCustom().then(custom => {
+    if (!slug) { setLoadingBarb(false); return }
+    getBarbeariaPorSlug(slug).then(b => { setBarbearia(b); setLoadingBarb(false) })
+  }, [slug])
+
+  useEffect(() => {
+    if (loadingBarb) return
+    buscarDiasBloqueados(bid).then(setDiasBloqueados)
+    buscarConfig('almoco', bid).then(setAlmocoConfig)
+    getServicosCustom(bid).then(custom => {
       if (custom.length > 0) {
         setAllServicos([
           ...SERVICOS_BASE,
@@ -82,17 +98,17 @@ export default function App() {
       setAdminUser(session?.user ?? null)
     })
     return () => subscription.unsubscribe()
-  }, [])
+  }, [loadingBarb, bid])
 
   useEffect(() => {
     if (!form.data) return
     setHoraSelecionada(null)
     setLoadingSlots(true)
-    buscarHorariosOcupados(form.data)
+    buscarHorariosOcupados(form.data, bid)
       .then(setHorasOcupadas)
       .catch(() => setHorasOcupadas([]))
       .finally(() => setLoadingSlots(false))
-  }, [form.data])
+  }, [form.data, bid])
 
   const slotDesabilitado = useMemo(() => {
     const agora  = new Date()
@@ -114,11 +130,12 @@ export default function App() {
     try {
       const datetime = new Date(`${form.data}T${String(horaSelecionada).padStart(2, '0')}:00:00`)
       const data = await criarAgendamentoPublico({
-        nome:     form.nome.trim(),
-        servico:  servico.label,
-        preco:    servico.preco,
-        data:     datetime.toISOString(),
-        whatsapp: form.whatsapp.replace(/\D/g, ''),
+        nome:         form.nome.trim(),
+        servico:      servico.label,
+        preco:        servico.preco,
+        data:         datetime.toISOString(),
+        whatsapp:     form.whatsapp.replace(/\D/g, ''),
+        barbearia_id: bid,
       })
       setResultado(data)
       setStep('success')
@@ -141,20 +158,21 @@ export default function App() {
 
   // ─── Views ─────────────────────────────────────────────────────────────────
   if (view === 'meushorarios') {
-    return <MeusAgendamentos onClose={() => setView('booking')} />
+    return <MeusAgendamentos onClose={() => setView('booking')} barbearia={barbearia} />
   }
 
   if (view === 'admin') {
     return (
       <AdminSection
         user={adminUser}
+        nomeBarbearia={nomeBarbearia}
         onLogout={async () => { await logout(); setAdminUser(null) }}
         onClose={() => setView('booking')}
       />
     )
   }
 
-  if (step === 'success') return <SuccessScreen resultado={resultado} onNovo={resetar} onMeusHorarios={() => setView('meushorarios')} />
+  if (step === 'success') return <SuccessScreen resultado={resultado} nomeBarbearia={nomeBarbearia} onNovo={resetar} onMeusHorarios={() => setView('meushorarios')} />
 
   // ─── Public booking ─────────────────────────────────────────────────────────
   return (
@@ -168,7 +186,7 @@ export default function App() {
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-blade-500/10 border border-blade-500/20 mb-5">
             <ScissorsIcon />
           </div>
-          <h1 className="font-display text-5xl tracking-widest text-white leading-none mb-1">DUNGABARBER</h1>
+          <h1 className="font-display text-5xl tracking-widest text-white leading-none mb-1">{nomeBarbearia}</h1>
           <p className="text-blade-400 text-sm font-medium tracking-wider uppercase mb-1">Agendamento online</p>
           <button
             onClick={() => setView('meushorarios')}
@@ -375,7 +393,7 @@ export default function App() {
       </div>
 
       <p className="text-center text-ink-600 text-xs pb-6">
-        DUNGABARBER © {new Date().getFullYear()} ·{' '}
+        {nomeBarbearia} © {new Date().getFullYear()} ·{' '}
         <button onClick={() => setView('admin')} className="hover:text-ink-400 transition-colors">Admin</button>
       </p>
     </div>
@@ -383,7 +401,7 @@ export default function App() {
 }
 
 // ─── Meus Agendamentos (cliente) ──────────────────────────────────────────────
-function MeusAgendamentos({ onClose }) {
+function MeusAgendamentos({ onClose, barbearia }) {
   const [tel,          setTel]          = useState('')
   const [agendamentos, setAgendamentos] = useState([])
   const [loading,      setLoading]      = useState(false)
@@ -397,7 +415,7 @@ function MeusAgendamentos({ onClose }) {
     setError('')
     setLoading(true)
     try {
-      const data = await buscarMeusAgendamentos(digits)
+      const data = await buscarMeusAgendamentos(digits, barbearia?.id ?? null)
       setAgendamentos(data)
       setBuscado(true)
     } catch {
@@ -418,7 +436,7 @@ function MeusAgendamentos({ onClose }) {
       <div className="bg-ink-800 border-b border-ink-700 px-6 py-4">
         <div className="max-w-sm mx-auto flex items-center justify-between">
           <div>
-            <h1 className="font-display text-2xl tracking-widest">DUNGABARBER</h1>
+            <h1 className="font-display text-2xl tracking-widest">{barbearia?.nome || 'DUNGABARBER'}</h1>
             <p className="text-ink-400 text-xs">Meus agendamentos</p>
           </div>
           <button onClick={onClose} className="text-ink-400 text-sm hover:text-white transition-colors">← Voltar</button>
@@ -518,15 +536,15 @@ function MeusAgendamentos({ onClose }) {
 }
 
 // ─── Admin section ────────────────────────────────────────────────────────────
-function AdminSection({ user, onLogout, onClose }) {
+function AdminSection({ user, nomeBarbearia, onLogout, onClose }) {
   return user ? (
-    <AdminPanel user={user} onLogout={onLogout} onClose={onClose} />
+    <AdminPanel user={user} nomeBarbearia={nomeBarbearia} onLogout={onLogout} onClose={onClose} />
   ) : (
-    <AdminLogin onClose={onClose} />
+    <AdminLogin nomeBarbearia={nomeBarbearia} onClose={onClose} />
   )
 }
 
-function AdminLogin({ onClose }) {
+function AdminLogin({ nomeBarbearia, onClose }) {
   const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
   const [loading,  setLoading]  = useState(false)
@@ -552,7 +570,7 @@ function AdminLogin({ onClose }) {
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-blade-500/10 border border-blade-500/20 mb-4">
             <ScissorsIcon />
           </div>
-          <h1 className="font-display text-4xl tracking-widest text-white">DUNGABARBER</h1>
+          <h1 className="font-display text-4xl tracking-widest text-white">{nomeBarbearia}</h1>
           <p className="text-ink-400 text-sm mt-1">Área administrativa</p>
         </div>
 
@@ -586,7 +604,7 @@ const STATUS_CFG = {
   cancelado:  { label: 'Cancelado',  bg: 'bg-red-500/10',    border: 'border-red-500/30',    text: 'text-red-400' },
 }
 
-function AdminPanel({ user, onLogout, onClose }) {
+function AdminPanel({ user, nomeBarbearia, onLogout, onClose }) {
   const [agendamentos, setAgendamentos] = useState([])
   const [loading,      setLoading]      = useState(true)
   const [error,        setError]        = useState('')
@@ -655,7 +673,7 @@ function AdminPanel({ user, onLogout, onClose }) {
       <div className="bg-ink-800 border-b border-ink-700 px-6 py-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div>
-            <h1 className="font-display text-2xl tracking-widest text-white">DUNGABARBER</h1>
+            <h1 className="font-display text-2xl tracking-widest text-white">{nomeBarbearia}</h1>
             <p className="text-ink-400 text-xs">Área administrativa · {user.email}</p>
           </div>
           <div className="flex items-center gap-3">
@@ -736,6 +754,7 @@ function AdminPanel({ user, onLogout, onClose }) {
               <AdminCard
                 key={a.id}
                 agendamento={a}
+                nomeBarbearia={nomeBarbearia}
                 onStatus={handleStatus}
                 onRemover={handleRemover}
               />
@@ -747,7 +766,7 @@ function AdminPanel({ user, onLogout, onClose }) {
   )
 }
 
-function AdminCard({ agendamento, onStatus, onRemover }) {
+function AdminCard({ agendamento, nomeBarbearia, onStatus, onRemover }) {
   const [open, setOpen] = useState(false)
   const st   = STATUS_CFG[agendamento.status] || STATUS_CFG.confirmado
   const data = new Date(agendamento.data)
@@ -805,7 +824,7 @@ function AdminCard({ agendamento, onStatus, onRemover }) {
           )}
           {agendamento.whatsapp && (
             <a
-              href={`https://wa.me/55${agendamento.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá, ${agendamento.nome}! Seu agendamento na *DUNGABARBER* está confirmado para ${data.toLocaleDateString('pt-BR')} às ${data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}. Te esperamos!`)}`}
+              href={`https://wa.me/55${agendamento.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá, ${agendamento.nome}! Seu agendamento na *${nomeBarbearia}* está confirmado para ${data.toLocaleDateString('pt-BR')} às ${data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}. Te esperamos!`)}`}
               target="_blank"
               rel="noreferrer"
               className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blade-500/8 border border-blade-500/20 text-blade-400 hover:bg-blade-500/20 transition-colors"
@@ -826,7 +845,7 @@ function AdminCard({ agendamento, onStatus, onRemover }) {
 }
 
 // ─── Success screen ───────────────────────────────────────────────────────────
-function SuccessScreen({ resultado, onNovo, onMeusHorarios }) {
+function SuccessScreen({ resultado, nomeBarbearia, onNovo, onMeusHorarios }) {
   const data = new Date(resultado.data)
   return (
     <div className="min-h-screen bg-ink flex flex-col">
@@ -866,7 +885,7 @@ function SuccessScreen({ resultado, onNovo, onMeusHorarios }) {
           )}
         </div>
       </div>
-      <p className="text-center text-ink-600 text-xs pb-6">DUNGABARBER © {new Date().getFullYear()}</p>
+      <p className="text-center text-ink-600 text-xs pb-6">{nomeBarbearia} © {new Date().getFullYear()}</p>
     </div>
   )
 }

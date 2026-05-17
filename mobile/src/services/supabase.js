@@ -14,6 +14,31 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   },
 })
 
+// ─── Barbearia ────────────────────────────────────────────────────────────────
+export async function getBarbearia(userId) {
+  const { data } = await supabase.from('barbearias').select('*').eq('owner_id', userId).maybeSingle()
+  return data ?? null
+}
+
+export async function criarBarbearia(userId, nome, slug) {
+  const { data, error } = await supabase
+    .from('barbearias').insert([{ owner_id: userId, nome, slug }]).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function atualizarBarbearia(id, campos) {
+  const { data, error } = await supabase
+    .from('barbearias').update(campos).eq('id', id).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function getBarbeariaPorSlug(slug) {
+  const { data } = await supabase.from('barbearias').select('*').eq('slug', slug).maybeSingle()
+  return data ?? null
+}
+
 // ─── Auth ──────────────────────────────────────────────────────────────────
 export async function login(email, password) {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password })
@@ -131,10 +156,12 @@ export async function criarAgendamentoPublico(agendamento) {
   return data
 }
 
-export async function buscarHorariosOcupados(data) {
+export async function buscarHorariosOcupados(data, barbearia_id = null) {
   const inicio = new Date(data + 'T00:00:00').toISOString()
   const fim    = new Date(data + 'T23:59:59').toISOString()
-  const { data: rows, error } = await supabase.rpc('horarios_ocupados', { p_inicio: inicio, p_fim: fim })
+  const params = { p_inicio: inicio, p_fim: fim }
+  if (barbearia_id) params.p_barbearia_id = barbearia_id
+  const { data: rows, error } = await supabase.rpc('horarios_ocupados', params)
   if (error) throw error
   return (rows || []).map(r => new Date(r.hora).getHours())
 }

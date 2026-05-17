@@ -5,11 +5,6 @@ const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 export const supabase = createClient(supabaseUrl, supabaseKey)
 
-const PRECOS_VALIDOS = {
-  'Corte Normal': 35, 'Cabelo + Barba': 55, 'Platinado': 60,
-  'Tinta Preta': 15, 'Plano Mensal': 80, 'Mensal + Tinta': 100,
-}
-
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 export async function login(email, password) {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password })
@@ -19,6 +14,12 @@ export async function login(email, password) {
 
 export async function logout() {
   await supabase.auth.signOut()
+}
+
+// ─── Barbearia ────────────────────────────────────────────────────────────────
+export async function getBarbeariaPorSlug(slug) {
+  const { data } = await supabase.from('barbearias').select('*').eq('slug', slug).maybeSingle()
+  return data ?? null
 }
 
 // ─── Admin ────────────────────────────────────────────────────────────────────
@@ -32,23 +33,27 @@ export async function getAgendamentos() {
   return data || []
 }
 
-export async function buscarMeusAgendamentos(whatsapp) {
-  const { data, error } = await supabase
+export async function buscarMeusAgendamentos(whatsapp, barbearia_id = null) {
+  let q = supabase
     .from('agendamentos')
     .select('id, nome, servico, data, preco, status')
     .eq('whatsapp', whatsapp)
     .order('data', { ascending: false })
     .limit(20)
+  if (barbearia_id) q = q.eq('barbearia_id', barbearia_id)
+  const { data, error } = await q
   if (error) return []
   return data || []
 }
 
-export async function getServicosCustom() {
-  const { data, error } = await supabase
+export async function getServicosCustom(barbearia_id = null) {
+  let q = supabase
     .from('servicos')
     .select('id, label, desc, preco')
     .eq('ativo', true)
     .order('created_at', { ascending: true })
+  if (barbearia_id) q = q.eq('barbearia_id', barbearia_id)
+  const { data, error } = await q
   if (error) return []
   return data || []
 }
@@ -66,19 +71,31 @@ export async function removerAgendamento(id) {
 }
 
 // ─── Config ───────────────────────────────────────────────────────────────────
-export async function buscarConfig(key) {
-  const { data } = await supabase.from('config').select('value').eq('key', key).maybeSingle()
+export async function buscarConfig(key, barbearia_id = null) {
+  let q = supabase.from('config').select('value').eq('key', key)
+  if (barbearia_id) q = q.eq('barbearia_id', barbearia_id)
+  const { data } = await q.maybeSingle()
   return data?.value ?? null
 }
 
 // ─── Public booking ───────────────────────────────────────────────────────────
 export async function criarAgendamentoPublico(agendamento) {
-  let preco = PRECOS_VALIDOS[agendamento.servico]
-  if (!preco) {
+  const bid = agendamento.barbearia_id
+
+  // Validar serviço — tenta tabela servicos filtrada pela barbearia
+  let preco = null
+  if (bid) {
     const { data: svc } = await supabase
-      .from('servicos').select('preco').eq('label', agendamento.servico).eq('ativo', true).maybeSingle()
+      .from('servicos').select('preco').eq('label', agendamento.servico)
+      .eq('ativo', true).eq('barbearia_id', bid).maybeSingle()
     if (svc) preco = svc.preco
   }
+  // fallback: tabela de preços base
+  const PRECOS_BASE = {
+    'Corte Normal': 35, 'Cabelo + Barba': 55, 'Platinado': 60,
+    'Tinta Preta': 15, 'Plano Mensal': 80, 'Mensal + Tinta': 100,
+  }
+  if (!preco) preco = PRECOS_BASE[agendamento.servico]
   if (!preco) throw new Error('Serviço inválido.')
 
   if (new Date(agendamento.data) < new Date()) throw new Error('Data inválida.')
@@ -87,30 +104,27 @@ export async function criarAgendamentoPublico(agendamento) {
     const dia    = agendamento.data.slice(0, 10)
     const inicio = new Date(dia + 'T00:00:00').toISOString()
     const fim    = new Date(dia + 'T23:59:59').toISOString()
-    const { data: existente } = await supabase
-      .from('agendamentos')
-      .select('id')
-      .eq('whatsapp', agendamento.whatsapp)
-      .eq('status', 'confirmado')
-      .gte('data', inicio)
-      .lte('data', fim)
-      .maybeSingle()
+    let dupQ = supabase.from('agendamentos').select('id')
+      .eq('whatsapp', agendamento.whatsapp).eq('status', 'confirmado')
+      .gte('data', inicio).lte('data', fim)
+    if (bid) dupQ = dupQ.eq('barbearia_id', bid)
+    const { data: existente } = await dupQ.maybeSingle()
     if (existente) throw new Error('Você já tem um agendamento nesse dia.')
   }
 
   const { data, error } = await supabase
     .from('agendamentos')
     .insert([{
-      nome:     agendamento.nome,
-      servico:  agendamento.servico,
+      nome:         agendamento.nome,
+      servico:      agendamento.servico,
       preco,
-      data:     agendamento.data,
-      whatsapp: agendamento.whatsapp,
-      user_id:  null,
-      status:   'confirmado',
+      data:         agendamento.data,
+      whatsapp:     agendamento.whatsapp,
+      user_id:      null,
+      status:       'confirmado',
+      barbearia_id: bid ?? null,
     }])
-    .select()
-    .single()
+    .select().single()
 
   if (error) {
     if (error.code === '23505') throw new Error('Horário indisponível. Escolha outro.')
@@ -119,17 +133,20 @@ export async function criarAgendamentoPublico(agendamento) {
   return data
 }
 
-export async function buscarDiasBloqueados() {
-  const { data, error } = await supabase.from('dias_bloqueados').select('data')
+export async function buscarDiasBloqueados(barbearia_id = null) {
+  let q = supabase.from('dias_bloqueados').select('data')
+  if (barbearia_id) q = q.eq('barbearia_id', barbearia_id)
+  const { data, error } = await q
   if (error) return []
   return (data || []).map(r => r.data)
 }
 
-export async function buscarHorariosOcupados(data) {
+export async function buscarHorariosOcupados(data, barbearia_id = null) {
   const inicio = new Date(data + 'T00:00:00').toISOString()
   const fim    = new Date(data + 'T23:59:59').toISOString()
-  const { data: rows, error } = await supabase
-    .rpc('horarios_ocupados', { p_inicio: inicio, p_fim: fim })
+  const params = { p_inicio: inicio, p_fim: fim }
+  if (barbearia_id) params.p_barbearia_id = barbearia_id
+  const { data: rows, error } = await supabase.rpc('horarios_ocupados', params)
   if (error) throw error
   return (rows || []).map(r => new Date(r.hora).getHours())
 }
