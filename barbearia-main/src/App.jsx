@@ -11,14 +11,8 @@ import Upgrade     from './pages/Upgrade'
 import Termos      from './pages/Termos'
 import Privacidade from './pages/Privacidade'
 
-function assinaturaAtiva(barb) {
-  if (!barb) return false
-  if (barb.subscription_status === 'active') return true
-  if (barb.subscription_status === 'trial') {
-    if (!barb.trial_ends_at) return true // legado sem data = libera
-    return new Date(barb.trial_ends_at) > new Date()
-  }
-  return false
+function assinaturaAtiva(_barb) {
+  return true // TODO: enforce quando ativar cobrança
 }
 
 function PrivateRoute({ children }) {
