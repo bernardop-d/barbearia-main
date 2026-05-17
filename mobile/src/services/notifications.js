@@ -14,7 +14,7 @@ export async function registrarPushToken() {
   try {
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
-        name: 'DUNGABARBER',
+        name: 'Your Barber',
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#22c55e',

@@ -6,6 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons'
 import { COLORS, CARD, INPUT } from '../theme'
 import { getAgendamentos, atualizarStatus, atualizarAgendamento, removerAgendamento, criarAgendamento } from '../services/supabase'
+import { useBarbearia } from '../context/BarbeiariaContext'
 import { STATUS_LABEL } from '../constants'
 
 function formatMoeda(v) {
@@ -30,6 +31,9 @@ const FILTROS = [
 ]
 
 export default function AgendaScreen({ navigation }) {
+  const { barbearia } = useBarbearia()
+  const nomeBarbearia = barbearia?.nome || 'Your Barber'
+
   const [agendamentos, setAgendamentos] = useState([])
   const [loading, setLoading]           = useState(true)
   const [refreshing, setRefreshing]     = useState(false)
@@ -139,7 +143,7 @@ export default function AgendaScreen({ navigation }) {
     const dataFmt = formatDataLonga(agendamento.data)
     const horaFmt = formatHora(agendamento.data)
     const msg = encodeURIComponent(
-      `Olá, ${agendamento.nome}!\n\nSeu agendamento na *DUNGABARBER* está confirmado.\n\n` +
+      `Olá, ${agendamento.nome}!\n\nSeu agendamento na *${nomeBarbearia}* está confirmado.\n\n` +
       `*Serviço:* ${agendamento.servico}\n*Data:* ${dataFmt}\n*Horário:* ${horaFmt}\n` +
       `*Valor:* ${formatMoeda(agendamento.preco)}\n\nTe esperamos!`
     )
@@ -198,6 +202,7 @@ export default function AgendaScreen({ navigation }) {
             <AgendamentoCard
               key={a.id}
               agendamento={a}
+              nomeBarbearia={nomeBarbearia}
               expanded={expanded === a.id}
               onToggle={() => setExpanded(prev => prev === a.id ? null : a.id)}
               onStatus={(id, status) => handleStatus(id, status, a)}
@@ -213,7 +218,7 @@ export default function AgendaScreen({ navigation }) {
   )
 }
 
-function AgendamentoCard({ agendamento, expanded, onToggle, onStatus, onPago, onEditar, onRemover, onWhatsApp }) {
+function AgendamentoCard({ agendamento, nomeBarbearia, expanded, onToggle, onStatus, onPago, onEditar, onRemover, onWhatsApp }) {
   const statusInfo = STATUS_LABEL[agendamento.status] || STATUS_LABEL.pendente
   const agora = new Date()
   const data  = new Date(agendamento.data)
@@ -228,7 +233,7 @@ function AgendamentoCard({ agendamento, expanded, onToggle, onStatus, onPago, on
           onPress={() => {
             const horaFmt = formatHora(agendamento.data)
             const numero  = agendamento.whatsapp?.replace(/\D/g, '')
-            const msg = encodeURIComponent(`Olá, ${agendamento.nome}! Passando para lembrar que seu horário na *DUNGABARBER* é hoje às *${horaFmt}*. Até logo!`)
+            const msg = encodeURIComponent(`Olá, ${agendamento.nome}! Passando para lembrar que seu horário na *${nomeBarbearia}* é hoje às *${horaFmt}*. Até logo!`)
             Linking.openURL(numero ? `https://wa.me/55${numero}?text=${msg}` : `https://wa.me/?text=${msg}`)
           }}
         >

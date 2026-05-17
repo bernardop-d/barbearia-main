@@ -122,7 +122,7 @@ function UpdateModal({ visible, onUpdate, onDismiss }) {
         <View style={s.updateCard}>
           <Ionicons name="refresh-circle-outline" size={48} color={COLORS.green} style={{ marginBottom: 12 }} />
           <RNText style={s.updateTitle}>Atualização disponível</RNText>
-          <RNText style={s.updateText}>Uma nova versão do DUNGABARBER está pronta. Deseja atualizar agora?</RNText>
+          <RNText style={s.updateText}>Uma nova versão do Your Barber está pronta. Deseja atualizar agora?</RNText>
           <TouchableOpacity style={s.updateBtn} onPress={onUpdate}>
             <RNText style={s.updateBtnText}>Atualizar agora</RNText>
           </TouchableOpacity>

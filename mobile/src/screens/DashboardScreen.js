@@ -7,6 +7,7 @@ import * as Notifications from 'expo-notifications'
 import { Ionicons } from '@expo/vector-icons'
 import { COLORS, CARD } from '../theme'
 import { getAgendamentos, getProdutos, logout, supabase } from '../services/supabase'
+import { useBarbearia } from '../context/BarbeiariaContext'
 
 function formatMoeda(v) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
@@ -24,6 +25,9 @@ function inicioDiaAmanha() {
 }
 
 export default function DashboardScreen({ navigation }) {
+  const { barbearia } = useBarbearia()
+  const nomeBarbearia = barbearia?.nome || 'Your Barber'
+
   const [agendamentos, setAgendamentos] = useState([])
   const [estoqueBaixo, setEstoqueBaixo] = useState([])
   const [loading,      setLoading]      = useState(true)
@@ -92,7 +96,7 @@ export default function DashboardScreen({ navigation }) {
       if (trigger > new Date()) {
         await Notifications.scheduleNotificationAsync({
           content: {
-            title: 'Próximo cliente — DUNGABARBER',
+            title: `Próximo cliente — ${nomeBarbearia}`,
             body:  `${a.nome} · ${a.servico} às ${formatHora(a.data)}`,
             sound: true,
           },
