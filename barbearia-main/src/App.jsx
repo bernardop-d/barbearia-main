@@ -31,6 +31,7 @@ function PrivateRoute({ children }) {
       if (god) { setIsGod(true); setCheck('ok'); return }
       if (params.get('assinatura') === 'ok') { setCheck('ok'); return }
       getBarbeariaAtual().then(barb => {
+        if (!barb) { setCheck('cadastro'); return }
         setCheck(assinaturaAtiva(barb) ? 'ok' : 'upgrade')
       }).catch(() => setCheck('ok'))
     })
@@ -38,7 +39,8 @@ function PrivateRoute({ children }) {
 
   if (loading || (user && check === 'loading')) return <Splash />
   if (!user) return <Landing />
-  if (check === 'upgrade') return <Navigate to="/upgrade" replace />
+  if (check === 'cadastro') return <Navigate to="/cadastro" replace />
+  if (check === 'upgrade')  return <Navigate to="/upgrade" replace />
   if (isGod) return <GodPanel />
   return children
 }

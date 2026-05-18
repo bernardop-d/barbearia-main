@@ -89,6 +89,9 @@ export default function Cadastro() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
+          <Link to="/login" className="text-ink-500 text-sm hover:text-ink-300 transition-colors block mb-4">
+            ← Voltar
+          </Link>
           <Link to="/" className="font-display text-3xl text-gradient tracking-widest inline-block">
             Your Barber
           </Link>
