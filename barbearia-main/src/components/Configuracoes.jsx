@@ -264,51 +264,31 @@ function TabBarbeiros({ bid }) {
 
 // ─── Tab: Assinatura ───────────────────────────────────────────────────────
 
-const STATUS_LABEL = {
-  trial:    { label: 'Período de teste', cls: 'text-blade-400' },
-  active:   { label: 'Ativa',            cls: 'text-emerald-400' },
-  past_due: { label: 'Pagamento pendente', cls: 'text-orange-400' },
-  canceled: { label: 'Cancelada',        cls: 'text-red-400' },
-}
-
 function TabAssinatura({ barbearia }) {
-  const [loading, setLoading] = useState(false)
-  const [error,   setError]   = useState('')
+  const vencimento = barbearia?.vencimento ?? null
+  const ativo      = barbearia?.ativo ?? false
 
-  const status = barbearia?.subscription_status || 'trial'
-  const info   = STATUS_LABEL[status] || STATUS_LABEL.trial
-
-  const diasTrial = barbearia?.trial_ends_at
-    ? Math.max(0, Math.ceil((new Date(barbearia.trial_ends_at) - new Date()) / 86400000))
+  const diasRestantes = vencimento
+    ? Math.max(0, Math.ceil((new Date(vencimento + 'T23:59:59') - new Date()) / 86400000))
     : null
 
-  const proxRenovacao = barbearia?.subscription_ends_at
-    ? new Date(barbearia.subscription_ends_at).toLocaleDateString('pt-BR')
+  const vencimentoFmt = vencimento
+    ? new Date(vencimento + 'T12:00:00').toLocaleDateString('pt-BR')
     : null
 
-  async function handlePortal() {
-    setLoading(true)
-    setError('')
-    try {
-      const url = await abrirPortal()
-      window.location.href = url
-    } catch {
-      setError('Erro ao abrir portal. Tente novamente.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  async function handleUpgrade(priceId) {
-    setLoading(true)
-    setError('')
-    try {
-      const url = await criarCheckout(priceId)
-      window.location.href = url
-    } catch {
-      setError('Erro ao iniciar checkout. Tente novamente.')
-    } finally {
-      setLoading(false)
+  let statusLabel = 'Ativa'
+  let statusCls   = 'text-emerald-400'
+  if (!ativo) {
+    statusLabel = 'Inativa'
+    statusCls   = 'text-red-400'
+  } else if (vencimento) {
+    const hoje = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' })
+    if (vencimento < hoje) {
+      statusLabel = 'Vencida'
+      statusCls   = 'text-orange-400'
+    } else if (diasRestantes !== null && diasRestantes <= 7) {
+      statusLabel = 'Período de teste'
+      statusCls   = 'text-yellow-400'
     }
   }
 
@@ -317,54 +297,30 @@ function TabAssinatura({ barbearia }) {
       <div className="card flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <p className="text-ink-400 text-xs uppercase tracking-wider">Status</p>
-          <p className={`font-semibold text-sm ${info.cls}`}>{info.label}</p>
+          <p className={`font-semibold text-sm ${statusCls}`}>{statusLabel}</p>
         </div>
 
-        {status === 'trial' && diasTrial !== null && (
+        {vencimentoFmt && (
           <div className="flex items-center justify-between">
-            <p className="text-ink-400 text-xs uppercase tracking-wider">Dias restantes</p>
-            <p className={`font-semibold text-sm ${diasTrial <= 3 ? 'text-orange-400' : 'text-white'}`}>
-              {diasTrial} {diasTrial === 1 ? 'dia' : 'dias'}
-            </p>
+            <p className="text-ink-400 text-xs uppercase tracking-wider">Acesso até</p>
+            <p className="text-white text-sm">{vencimentoFmt}</p>
           </div>
         )}
 
-        {proxRenovacao && (
+        {diasRestantes !== null && (
           <div className="flex items-center justify-between">
-            <p className="text-ink-400 text-xs uppercase tracking-wider">
-              {status === 'active' ? 'Próxima cobrança' : 'Encerra em'}
+            <p className="text-ink-400 text-xs uppercase tracking-wider">Dias restantes</p>
+            <p className={`font-semibold text-sm ${diasRestantes <= 3 ? 'text-orange-400' : 'text-white'}`}>
+              {diasRestantes} {diasRestantes === 1 ? 'dia' : 'dias'}
             </p>
-            <p className="text-white text-sm">{proxRenovacao}</p>
           </div>
         )}
       </div>
 
-      {error && <p className="text-red-400 text-sm">{error}</p>}
-
-      {status === 'active' && barbearia?.stripe_customer_id && (
-        <button onClick={handlePortal} disabled={loading} className="btn-primary disabled:opacity-50">
-          {loading ? 'Abrindo...' : 'Gerenciar assinatura'}
-        </button>
-      )}
-
-      {(status === 'trial' || status === 'past_due' || status === 'canceled') && (
-        <div className="flex flex-col gap-3">
-          <button
-            onClick={() => handleUpgrade(import.meta.env.VITE_STRIPE_PRICE_ANUAL)}
-            disabled={loading}
-            className="btn-primary disabled:opacity-50"
-          >
-            {loading ? 'Redirecionando...' : 'Assinar Anual — R$490/ano'}
-          </button>
-          <button
-            onClick={() => handleUpgrade(import.meta.env.VITE_STRIPE_PRICE_MENSAL)}
-            disabled={loading}
-            className="w-full py-3 rounded-xl border border-ink-600 text-ink-300 text-sm font-medium hover:border-ink-500 transition-all disabled:opacity-50"
-          >
-            Assinar Mensal — R$49/mês
-          </button>
-        </div>
-      )}
+      <div className="card text-center flex flex-col gap-2">
+        <p className="text-ink-400 text-sm">Quer renovar ou ampliar seu acesso?</p>
+        <p className="text-ink-500 text-xs">Entre em contato com o administrador do sistema.</p>
+      </div>
     </div>
   )
 }
