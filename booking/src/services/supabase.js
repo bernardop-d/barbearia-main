@@ -114,27 +114,26 @@ export async function criarAgendamentoPublico(agendamento) {
     if (existente) throw new Error('Você já tem um agendamento nesse dia.')
   }
 
-  const { data, error } = await supabase
-    .from('agendamentos')
-    .insert([{
-      nome:          agendamento.nome,
-      servico:       agendamento.servico,
-      preco,
-      data:          agendamento.data,
-      whatsapp:      agendamento.whatsapp,
-      user_id:       null,
-      status:        'confirmado',
-      barbearia_id:  bid ?? null,
-      barbeiro_id:   agendamento.barbeiro_id ?? null,
-      barbeiro_nome: agendamento.barbeiro_nome ?? null,
-    }])
-    .select().single()
+  const row = {
+    nome:          agendamento.nome,
+    servico:       agendamento.servico,
+    preco,
+    data:          agendamento.data,
+    whatsapp:      agendamento.whatsapp,
+    user_id:       null,
+    status:        'confirmado',
+    barbearia_id:  bid ?? null,
+    barbeiro_id:   agendamento.barbeiro_id ?? null,
+    barbeiro_nome: agendamento.barbeiro_nome ?? null,
+  }
+
+  const { error } = await supabase.from('agendamentos').insert([row])
 
   if (error) {
     if (error.code === '23505') throw new Error('Horário indisponível. Escolha outro.')
     throw error
   }
-  return data
+  return { ...row, id: crypto.randomUUID(), status: 'confirmado' }
 }
 
 export async function buscarDiasBloqueados(barbearia_id = null) {
