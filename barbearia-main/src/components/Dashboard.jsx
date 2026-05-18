@@ -55,7 +55,7 @@ function GraficoReceita({ agendamentos }) {
   )
 }
 
-export default function Dashboard({ agendamentos, onNovoAgendamento }) {
+export default function Dashboard({ agendamentos, onNovoAgendamento, barbearia }) {
   // Single-pass: calcula todas as stats em um único loop
   const stats = useMemo(() => {
     const agora      = new Date()
@@ -95,6 +95,15 @@ export default function Dashboard({ agendamentos, onNovoAgendamento }) {
     [agendamentos]
   )
 
+  const isNewAccount = agendamentos.length === 0
+  const bookingUrl = barbearia?.slug
+    ? `${window.location.origin}/booking/?b=${barbearia.slug}`
+    : null
+
+  function copiarLink() {
+    navigator.clipboard?.writeText(bookingUrl)
+  }
+
   return (
     <div className="flex flex-col gap-5 animate-slide-up">
       {/* Saudação */}
@@ -104,6 +113,30 @@ export default function Dashboard({ agendamentos, onNovoAgendamento }) {
         </h2>
         <p className="text-ink-400 text-sm mt-1">{formatarDataLonga(new Date())}</p>
       </div>
+
+      {/* Onboarding — só aparece quando a conta é nova */}
+      {isNewAccount && (
+        <div className="bg-blade-500/5 border border-blade-500/20 rounded-2xl p-4 flex flex-col gap-3">
+          <p className="text-blade-400 text-sm font-semibold">Primeiros passos</p>
+          <Step n={1} texto="Configure seus serviços em Configurações → Serviços" />
+          <Step n={2} texto="Adicione seu WhatsApp em Configurações → Barbearia" />
+          <Step n={3} texto="Copie seu link abaixo e mande pro cliente agendar" />
+        </div>
+      )}
+
+      {/* Link de agendamento */}
+      {bookingUrl && (
+        <div className="bg-ink-800 border border-ink-700 rounded-2xl p-4">
+          <p className="text-xs text-ink-400 uppercase tracking-wider mb-2">Seu link de agendamento</p>
+          <p className="text-blade-400 font-mono text-xs break-all mb-3">{bookingUrl}</p>
+          <button
+            onClick={copiarLink}
+            className="w-full py-2.5 rounded-xl bg-blade-500 text-ink-900 text-sm font-bold active:scale-95 transition-all"
+          >
+            Copiar link
+          </button>
+        </div>
+      )}
 
       {/* Cards principais */}
       <div className="grid grid-cols-2 gap-3">
@@ -191,3 +224,14 @@ const ProximoCard = memo(function ProximoCard({ agendamento }) {
     </div>
   )
 })
+
+function Step({ n, texto }) {
+  return (
+    <div className="flex items-start gap-3">
+      <div className="w-5 h-5 rounded-full bg-blade-500/20 border border-blade-500/40 flex items-center justify-center flex-shrink-0 mt-0.5">
+        <span className="text-blade-400 text-[10px] font-bold">{n}</span>
+      </div>
+      <p className="text-ink-300 text-sm">{texto}</p>
+    </div>
+  )
+}

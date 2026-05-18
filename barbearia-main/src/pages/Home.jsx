@@ -8,17 +8,20 @@ import Estoque from '../components/Estoque'
 import Financeiro from '../components/Financeiro'
 import Clientes from '../components/Clientes'
 import Configuracoes from '../components/Configuracoes'
-import { getAgendamentos, getNomeBarbearia, supabase } from '../services/supabase'
+import { getAgendamentos, getBarbeariaAtual, supabase } from '../services/supabase'
 
 export default function Home() {
   const [activeTab,      setActiveTab]      = useState('dashboard')
   const [agendamentos,   setAgendamentos]   = useState([])
   const [nomeBarbearia,  setNomeBarbearia]  = useState('Your Barber')
+  const [barbearia,      setBarbearia]      = useState(null)
   const [loading,        setLoading]        = useState(true)
   const [toast,          setToast]          = useState(null)
 
   useEffect(() => {
-    getNomeBarbearia().then(nome => { if (nome) setNomeBarbearia(nome) })
+    getBarbeariaAtual().then(b => {
+      if (b) { setBarbearia(b); setNomeBarbearia(b.nome) }
+    })
   }, [])
 
   const fetchAgendamentos = useCallback(async () => {
@@ -73,6 +76,7 @@ export default function Home() {
                 <Dashboard
                   agendamentos={agendamentos}
                   onNovoAgendamento={() => setActiveTab('novo')}
+                  barbearia={barbearia}
                 />
               )}
               {activeTab === 'agenda' && (

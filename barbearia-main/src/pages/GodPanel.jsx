@@ -204,7 +204,34 @@ function NovaContaModal({ onClose, onCreated }) {
           <Field label="Slug (URL) *" value={form.slug} onChange={v => set('slug', slugify(v))} placeholder="barbearia-do-joao" />
           <Field label="Email do dono *" type="email" value={form.email} onChange={v => set('email', v)} placeholder="dono@email.com" />
           <Field label="Senha inicial *" type="password" value={form.password} onChange={v => set('password', v)} placeholder="mínimo 6 caracteres" />
-          <Field label="Vencimento" type="date" value={form.vencimento} onChange={v => set('vencimento', v)} />
+          <div>
+            <label className="block text-xs text-ink-400 mb-1">Vencimento</label>
+            <div className="flex gap-1.5 mb-2">
+              {[['1d','1 dia',1],['7d','7 dias',7],['30d','30 dias',30]].map(([key, label, days]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => {
+                    const d = new Date()
+                    d.setDate(d.getDate() + days)
+                    set('vencimento', d.toLocaleDateString('sv-SE'))
+                  }}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-all
+                    ${form.vencimento === new Date(new Date().setDate(new Date().getDate() + days)).toLocaleDateString('sv-SE')
+                      ? 'bg-blade-500/20 border-blade-500/40 text-blade-400'
+                      : 'bg-ink-900 border-ink-700 text-ink-400 hover:border-ink-500'}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <input
+              type="date"
+              value={form.vencimento}
+              onChange={e => set('vencimento', e.target.value)}
+              className="w-full bg-ink-900 border border-ink-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blade-500/50"
+            />
+          </div>
 
           {error && <p className="text-red-400 text-xs">{error}</p>}
 
