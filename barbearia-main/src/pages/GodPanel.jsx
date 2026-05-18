@@ -1,6 +1,6 @@
 // src/pages/GodPanel.jsx
 import { useState, useEffect } from 'react'
-import { supabase } from '../services/supabase'
+import { supabase, deletarConta } from '../services/supabase'
 import { useAuth } from '../hooks/useAuth'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
@@ -154,6 +154,18 @@ function PendenteCard({ barbearia: b, onUpdate }) {
             className="flex-1 bg-ink-900 border border-ink-700 rounded-lg px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blade-500/50"
           />
           <button
+            onClick={async () => {
+              if (!window.confirm(`Rejeitar e excluir a conta de ${b.nome}?`)) return
+              setSaving(true)
+              try { await deletarConta(b.id); onUpdate() }
+              catch { setSaving(false) }
+            }}
+            disabled={saving}
+            className="px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-bold hover:bg-red-500/20 active:scale-95 transition-all disabled:opacity-50"
+          >
+            {saving ? '...' : 'Rejeitar'}
+          </button>
+          <button
             onClick={handleAprovar}
             disabled={saving}
             className="px-4 py-1.5 rounded-lg bg-blade-500 text-ink-900 text-xs font-bold hover:bg-blade-400 active:scale-95 transition-all disabled:opacity-50"
@@ -170,6 +182,7 @@ function BarbeariaCard({ barbearia: b, onUpdate }) {
   const [ativo,      setAtivo]      = useState(b.ativo)
   const [vencimento, setVencimento] = useState(b.vencimento || '')
   const [saving,     setSaving]     = useState(false)
+  const [deleting,   setDeleting]   = useState(false)
 
   const vencido = b.vencimento && new Date(b.vencimento) < new Date()
 
@@ -210,6 +223,22 @@ function BarbeariaCard({ barbearia: b, onUpdate }) {
           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ${ativo ? 'bg-blade-500' : 'bg-ink-600'}`}
         >
           <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${ativo ? 'translate-x-6' : 'translate-x-1'}`} />
+        </button>
+      </div>
+
+      {/* Excluir */}
+      <div className="flex justify-end mb-2">
+        <button
+          onClick={async () => {
+            if (!window.confirm(`Excluir permanentemente a conta de ${b.nome}? Todos os dados serão removidos.`)) return
+            setDeleting(true)
+            try { await deletarConta(b.id); onUpdate() }
+            catch { setDeleting(false) }
+          }}
+          disabled={deleting}
+          className="text-xs text-red-500/60 hover:text-red-400 transition-colors disabled:opacity-40"
+        >
+          {deleting ? 'Excluindo...' : '× Excluir conta'}
         </button>
       </div>
 

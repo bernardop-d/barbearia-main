@@ -170,7 +170,31 @@ export async function criarBarbeariaAtual(nome, slug) {
     .insert([{ nome, slug, owner_id: user.id, ativo: false }])
     .select().single()
   if (error) throw error
+
+  // Notifica o admin (fire and forget)
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    if (!session) return
+    fetch(`${supabaseUrl}/functions/v1/notificar-cadastro`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+      body: JSON.stringify({ nome, email: user.email, slug }),
+    }).catch(() => {})
+  })
+
   return data
+}
+
+export async function deletarConta(barbeariaId) {
+  const { data: { session } } = await supabase.auth.getSession()
+  const resp = await fetch(`${supabaseUrl}/functions/v1/deletar-conta`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+    body: JSON.stringify({ barbearia_id: barbeariaId }),
+  })
+  if (!resp.ok) {
+    const json = await resp.json()
+    throw new Error(json.error || 'Erro ao deletar conta')
+  }
 }
 
 export async function getBarbeariaAtual() {
