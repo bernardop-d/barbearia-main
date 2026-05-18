@@ -546,29 +546,38 @@ function ServicoForm({ inicial, onSalvar, onCancelar }) {
 // ─── Tab: Horários ─────────────────────────────────────────────────────────
 
 const HORAS = Array.from({ length: 24 }, (_, i) => i)
-const INTERVALOS = [30, 60]
+const INTERVALOS = [15, 20, 30, 45, 60]
 
 function TabHorarios({ bid }) {
   const [cfg,     setCfg]     = useState({ inicio: 6, fim: 17, intervalo: 60 })
+  const [almoco,  setAlmoco]  = useState({ ativo: false, inicio: 12, fim: 13 })
   const [loading, setLoading] = useState(true)
   const [saving,  setSaving]  = useState(false)
   const [toast,   setToast]   = useState('')
 
   useEffect(() => {
-    getConfigAdmin('horarios', bid).then(v => {
-      if (v) setCfg(v)
+    Promise.all([
+      getConfigAdmin('horarios', bid),
+      getConfigAdmin('almoco', bid),
+    ]).then(([h, a]) => {
+      if (h) setCfg(h)
+      if (a) setAlmoco(a)
       setLoading(false)
     })
   }, [bid])
 
-  const set = (k, v) => setCfg(p => ({ ...p, [k]: v }))
+  const set     = (k, v) => setCfg(p => ({ ...p, [k]: v }))
+  const setAlm  = (k, v) => setAlmoco(p => ({ ...p, [k]: v }))
 
   async function handleSalvar(e) {
     e.preventDefault()
     setSaving(true)
     try {
-      await setConfigAdmin('horarios', cfg, bid)
-      setToast('Horários salvos! Clientes verão os novos slots ao agendar.')
+      await Promise.all([
+        setConfigAdmin('horarios', cfg, bid),
+        setConfigAdmin('almoco', almoco, bid),
+      ])
+      setToast('Configurações salvas!')
     } catch {
       setToast('Erro ao salvar.')
     } finally {
@@ -580,8 +589,9 @@ function TabHorarios({ bid }) {
   const previewSlots = (() => {
     const slots = []
     for (let m = cfg.inicio * 60; m <= cfg.fim * 60; m += cfg.intervalo) {
-      const h = Math.floor(m / 60)
+      const h   = Math.floor(m / 60)
       const min = m % 60
+      if (almoco.ativo && h >= almoco.inicio && h < almoco.fim) continue
       slots.push(`${String(h).padStart(2,'0')}:${String(min).padStart(2,'0')}`)
     }
     return slots
@@ -597,35 +607,33 @@ function TabHorarios({ bid }) {
         </div>
       )}
 
+      {/* Horário de funcionamento */}
       <div className="card flex flex-col gap-4">
+        <p className="text-xs text-ink-400 uppercase tracking-wider font-medium">Horário de funcionamento</p>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs text-ink-400 font-medium mb-2 uppercase tracking-wider">Abertura</label>
+            <label className="block text-xs text-ink-400 font-medium mb-2">Abertura</label>
             <select className="input" value={cfg.inicio} onChange={e => set('inicio', Number(e.target.value))}>
-              {HORAS.map(h => (
-                <option key={h} value={h}>{String(h).padStart(2,'0')}:00</option>
-              ))}
+              {HORAS.map(h => <option key={h} value={h}>{String(h).padStart(2,'0')}:00</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-xs text-ink-400 font-medium mb-2 uppercase tracking-wider">Fechamento</label>
+            <label className="block text-xs text-ink-400 font-medium mb-2">Fechamento</label>
             <select className="input" value={cfg.fim} onChange={e => set('fim', Number(e.target.value))}>
-              {HORAS.map(h => (
-                <option key={h} value={h}>{String(h).padStart(2,'0')}:00</option>
-              ))}
+              {HORAS.map(h => <option key={h} value={h}>{String(h).padStart(2,'0')}:00</option>)}
             </select>
           </div>
         </div>
 
         <div>
-          <label className="block text-xs text-ink-400 font-medium mb-2 uppercase tracking-wider">Intervalo entre slots</label>
-          <div className="flex gap-2">
+          <label className="block text-xs text-ink-400 font-medium mb-2 uppercase tracking-wider">Duração de cada atendimento</label>
+          <div className="flex gap-2 flex-wrap">
             {INTERVALOS.map(v => (
               <button
                 key={v}
                 type="button"
                 onClick={() => set('intervalo', v)}
-                className={`flex-1 py-2.5 rounded-xl text-xs font-medium border transition-all active:scale-95
+                className={`flex-1 min-w-[56px] py-2.5 rounded-xl text-xs font-medium border transition-all active:scale-95
                   ${cfg.intervalo === v
                     ? 'bg-blade-500/20 border-blade-500/50 text-blade-400'
                     : 'bg-ink-700/40 border-ink-600 text-ink-400'}`}
@@ -637,8 +645,40 @@ function TabHorarios({ bid }) {
         </div>
       </div>
 
+      {/* Intervalo de almoço */}
+      <div className="card flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-ink-400 uppercase tracking-wider font-medium">Intervalo de almoço</p>
+          <button
+            type="button"
+            onClick={() => setAlm('ativo', !almoco.ativo)}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${almoco.ativo ? 'bg-blade-500' : 'bg-ink-600'}`}
+          >
+            <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${almoco.ativo ? 'translate-x-6' : 'translate-x-1'}`} />
+          </button>
+        </div>
+
+        {almoco.ativo && (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-ink-400 font-medium mb-2">Saída</label>
+              <select className="input" value={almoco.inicio} onChange={e => setAlm('inicio', Number(e.target.value))}>
+                {HORAS.map(h => <option key={h} value={h}>{String(h).padStart(2,'0')}:00</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-ink-400 font-medium mb-2">Retorno</label>
+              <select className="input" value={almoco.fim} onChange={e => setAlm('fim', Number(e.target.value))}>
+                {HORAS.map(h => <option key={h} value={h}>{String(h).padStart(2,'0')}:00</option>)}
+              </select>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Preview */}
       <div className="card">
-        <p className="text-xs text-ink-400 uppercase tracking-wider mb-2">Pré-visualização ({previewSlots.length} slots)</p>
+        <p className="text-xs text-ink-400 uppercase tracking-wider mb-2">Horários disponíveis ({previewSlots.length} slots)</p>
         <div className="flex flex-wrap gap-1.5">
           {previewSlots.map(s => (
             <span key={s} className="px-2 py-1 rounded-lg bg-ink-700 text-ink-300 text-xs font-mono">{s}</span>
@@ -647,7 +687,7 @@ function TabHorarios({ bid }) {
       </div>
 
       <button type="submit" className="btn-primary" disabled={saving}>
-        {saving ? 'Salvando...' : 'Salvar horários'}
+        {saving ? 'Salvando...' : 'Salvar configurações'}
       </button>
     </form>
   )
