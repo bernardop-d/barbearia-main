@@ -1,7 +1,7 @@
 import 'react-native-url-polyfill/auto'
 import { useEffect, useState } from 'react'
 import { StatusBar } from 'expo-status-bar'
-import { View, ActivityIndicator, StyleSheet, Modal, Text as RNText, TouchableOpacity } from 'react-native'
+import { View, ActivityIndicator, StyleSheet, Modal, Text as RNText, TouchableOpacity, Linking } from 'react-native'
 import * as Updates from 'expo-updates'
 import { registrarPushToken } from './src/services/notifications'
 import { NavigationContainer } from '@react-navigation/native'
@@ -10,6 +10,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack'
 
 import { Ionicons } from '@expo/vector-icons'
 import { AuthProvider, useAuth } from './src/context/AuthContext'
+import { supabase } from './src/services/supabase'
 import { BarbeiariaProvider, useBarbearia } from './src/context/BarbeiariaContext'
 import { COLORS } from './src/theme'
 
@@ -84,6 +85,30 @@ function AdminTabs() {
   )
 }
 
+const GOD_EMAIL = 'contato.bernardopd@gmail.com'
+const GOD_PANEL_URL = 'https://bernardop-d.github.io/barbearia-main/'
+
+function GodScreen() {
+  return (
+    <View style={[s.splash, { gap: 20, padding: 32 }]}>
+      <RNText style={{ color: '#f87171', fontSize: 11, fontWeight: '700', letterSpacing: 2, textTransform: 'uppercase' }}>GOD</RNText>
+      <RNText style={{ color: '#fff', fontSize: 22, fontWeight: '700', textAlign: 'center' }}>Your Barber Admin</RNText>
+      <RNText style={{ color: '#666', fontSize: 13, textAlign: 'center', lineHeight: 20 }}>
+        Sua conta é a conta master do sistema.{'\n'}Gerencie tudo pelo painel web.
+      </RNText>
+      <TouchableOpacity
+        style={{ backgroundColor: COLORS.green, borderRadius: 12, paddingVertical: 14, width: '100%', alignItems: 'center' }}
+        onPress={() => Linking.openURL(GOD_PANEL_URL)}
+      >
+        <RNText style={{ color: '#000', fontSize: 15, fontWeight: '700' }}>Abrir God Panel</RNText>
+      </TouchableOpacity>
+      <TouchableOpacity onPress={() => supabase.auth.signOut()}>
+        <RNText style={{ color: '#555', fontSize: 13, marginTop: 8 }}>Sair</RNText>
+      </TouchableOpacity>
+    </View>
+  )
+}
+
 function RootNavigator() {
   const { user, loading: authLoading }                    = useAuth()
   const { barbearia, setBarbearia, loading: barbLoading } = useBarbearia()
@@ -106,6 +131,10 @@ function RootNavigator() {
         <Stack.Screen name="Login" component={LoginScreen} />
       </Stack.Navigator>
     )
+  }
+
+  if (user.email === GOD_EMAIL) {
+    return <GodScreen />
   }
 
   if (!barbearia) {
