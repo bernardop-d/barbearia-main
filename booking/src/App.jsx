@@ -75,6 +75,7 @@ export default function App() {
   // barbearia multi-tenant (slug vem de ?b=slug na URL)
   const [barbearia,       setBarbearia]       = useState(null)
   const [loadingBarb,     setLoadingBarb]     = useState(true)
+  const [barbeariaInativa, setBarbeariaInativa] = useState(false)
   const slug = new URLSearchParams(window.location.search).get('b')
 
   const [step,            setStep]            = useState(1)
@@ -101,7 +102,14 @@ export default function App() {
   // Carregar barbearia pelo slug
   useEffect(() => {
     if (!slug) { setLoadingBarb(false); return }
-    getBarbeariaPorSlug(slug).then(b => { setBarbearia(b); setLoadingBarb(false) })
+    getBarbeariaPorSlug(slug).then(b => {
+      if (!b || !b.ativo || (b.vencimento && new Date(b.vencimento) < new Date())) {
+        setBarbeariaInativa(true)
+      } else {
+        setBarbearia(b)
+      }
+      setLoadingBarb(false)
+    })
   }, [slug])
 
   useEffect(() => {
@@ -192,6 +200,27 @@ export default function App() {
     setForm({ nome: '', whatsapp: '', data: hojeISO() })
     setHoraSelecionada(null); setResultado(null); setError('')
   }
+
+  // ─── Guards ────────────────────────────────────────────────────────────────
+  if (loadingBarb) return (
+    <div className="min-h-screen bg-ink flex items-center justify-center">
+      <div className="w-8 h-8 border-2 border-blade-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  )
+
+  if (barbeariaInativa || (!slug && !barbearia)) return (
+    <div className="min-h-screen bg-ink text-white flex flex-col items-center justify-center px-6 text-center gap-4">
+      <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-red-500/10 border border-red-500/20 mb-2">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-red-400">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+      </div>
+      <h1 className="text-2xl font-bold">Barbearia indisponível</h1>
+      <p className="text-ink-400 text-sm max-w-xs">
+        {!slug ? 'Link inválido. Peça ao barbeiro o link correto de agendamento.' : 'Esta barbearia não está aceitando agendamentos no momento. Entre em contato com o barbeiro.'}
+      </p>
+    </div>
+  )
 
   // ─── Views ─────────────────────────────────────────────────────────────────
   if (view === 'meushorarios') {
