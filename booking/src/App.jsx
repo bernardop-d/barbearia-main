@@ -19,6 +19,13 @@ const SERVICOS_BASE = [
 
 const HORARIOS_DEFAULT = { inicio: 6, fim: 17, intervalo: 60 }
 
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4)
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const rawData = atob(base64)
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)))
+}
+
 function gerarSlots(cfg) {
   const { inicio, fim, intervalo } = { ...HORARIOS_DEFAULT, ...(cfg || {}) }
   const slots = []
@@ -971,7 +978,7 @@ function SuccessScreen({ resultado, nomeBarbearia, whatsappBarbearia, onNovo, on
       if (vapidKey) {
         const sub = await reg.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: vapidKey,
+          applicationServerKey: urlBase64ToUint8Array(vapidKey),
         })
         const lembreteEm = new Date(data.getTime() - 60 * 60 * 1000).toISOString()
         await salvarPushSubscription(resultado.id, resultado.barbearia_id, sub.toJSON(), lembreteEm)
