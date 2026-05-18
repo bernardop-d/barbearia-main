@@ -167,7 +167,7 @@ export async function criarBarbeariaAtual(nome, slug) {
   if (!user) throw new Error('Não autenticado')
   const { data, error } = await supabase
     .from('barbearias')
-    .insert([{ nome, slug, owner_id: user.id }])
+    .insert([{ nome, slug, owner_id: user.id, ativo: false }])
     .select().single()
   if (error) throw error
   return data
@@ -178,7 +178,7 @@ export async function getBarbeariaAtual() {
   if (!user) return null
   const { data } = await supabase
     .from('barbearias')
-    .select('id, nome, subscription_status, trial_ends_at, subscription_ends_at, stripe_customer_id')
+    .select('id, nome, slug, ativo, vencimento, subscription_status, trial_ends_at, subscription_ends_at, stripe_customer_id')
     .eq('owner_id', user.id)
     .maybeSingle()
   return data ?? null

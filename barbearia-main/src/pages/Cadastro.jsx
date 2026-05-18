@@ -200,32 +200,25 @@ export default function Cadastro() {
           </form>
         )}
 
-        {/* Step 3: Sucesso */}
+        {/* Step 3: Aguardando aprovação */}
         {step === 3 && (
           <div className="card flex flex-col gap-6 text-center animate-fade-in">
             <div>
-              <div className="text-5xl mb-3">🎉</div>
-              <h2 className="font-display text-2xl text-white tracking-wide mb-1">Tudo pronto!</h2>
-              <p className="text-ink-400 text-sm">Sua barbearia está configurada e pronta para receber agendamentos.</p>
+              <div className="text-5xl mb-3">⏳</div>
+              <h2 className="font-display text-2xl text-white tracking-wide mb-1">Cadastro enviado!</h2>
+              <p className="text-ink-400 text-sm leading-relaxed">
+                Sua barbearia foi criada. O administrador vai revisar e ativar sua conta em breve.
+              </p>
             </div>
 
             <div className="bg-ink-700/50 border border-ink-600 rounded-xl p-4 text-left">
               <p className="text-ink-400 text-xs uppercase tracking-wider mb-2">Seu link de agendamento</p>
               <p className="text-blade-400 font-mono text-xs break-all">{bookingUrl}</p>
-              <button
-                onClick={() => navigator.clipboard?.writeText(bookingUrl)}
-                className="mt-2 text-ink-500 text-xs hover:text-ink-300 transition-colors"
-              >
-                Copiar link
-              </button>
+              <p className="text-ink-500 text-xs mt-2">Disponível assim que sua conta for ativada.</p>
             </div>
 
-            <p className="text-ink-400 text-xs">
-              Vá em <strong className="text-white">Configurações</strong> no painel para adicionar seu WhatsApp, serviços e horários.
-            </p>
-
             <button onClick={() => navigate('/')} className="btn-primary">
-              Acessar painel →
+              Ver status →
             </button>
           </div>
         )}

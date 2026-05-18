@@ -12,11 +12,12 @@ import Termos      from './pages/Termos'
 import Privacidade from './pages/Privacidade'
 import GodPanel    from './pages/GodPanel'
 
-function assinaturaAtiva(barb) {
-  if (!barb) return false
-  if (!barb.ativo) return false
-  if (barb.vencimento && new Date(barb.vencimento) < new Date()) return false
-  return true
+function checkAcesso(barb) {
+  if (!barb) return 'cadastro'
+  if (!barb.ativo && !barb.vencimento) return 'pendente'
+  if (!barb.ativo) return 'upgrade'
+  if (barb.vencimento && new Date(barb.vencimento) < new Date()) return 'upgrade'
+  return 'ok'
 }
 
 function PrivateRoute({ children }) {
@@ -31,8 +32,7 @@ function PrivateRoute({ children }) {
       if (god) { setIsGod(true); setCheck('ok'); return }
       if (params.get('assinatura') === 'ok') { setCheck('ok'); return }
       getBarbeariaAtual().then(barb => {
-        if (!barb) { setCheck('cadastro'); return }
-        setCheck(assinaturaAtiva(barb) ? 'ok' : 'upgrade')
+        setCheck(checkAcesso(barb))
       }).catch(() => setCheck('ok'))
     })
   }, [user, params])
@@ -40,9 +40,32 @@ function PrivateRoute({ children }) {
   if (loading || (user && check === 'loading')) return <Splash />
   if (!user) return <Landing />
   if (check === 'cadastro') return <Navigate to="/cadastro" replace />
+  if (check === 'pendente')  return <PendentePage />
   if (check === 'upgrade')  return <Navigate to="/upgrade" replace />
   if (isGod) return <GodPanel />
   return children
+}
+
+function PendentePage() {
+  const { logout } = useAuth()
+  return (
+    <div className="min-h-screen bg-ink flex flex-col items-center justify-center p-6 text-center">
+      <div className="w-full max-w-sm flex flex-col items-center gap-4">
+        <div className="text-5xl">⏳</div>
+        <h1 className="font-display text-2xl text-white tracking-wide">Aguardando aprovação</h1>
+        <p className="text-ink-400 text-sm leading-relaxed">
+          Sua conta foi criada com sucesso. O administrador precisa ativá-la antes de você começar a usar o sistema.
+        </p>
+        <p className="text-ink-500 text-xs">Entre em contato para liberar o acesso.</p>
+        <button
+          onClick={logout}
+          className="mt-4 text-ink-500 text-sm hover:text-ink-300 transition-colors"
+        >
+          Sair
+        </button>
+      </div>
+    </div>
+  )
 }
 
 function Splash() {

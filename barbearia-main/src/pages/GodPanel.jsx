@@ -23,9 +23,10 @@ export default function GodPanel() {
 
   useEffect(() => { fetchAll() }, [])
 
-  const total   = barbearias.length
-  const ativas  = barbearias.filter(b => b.ativo && (!b.vencimento || new Date(b.vencimento) >= new Date())).length
-  const vencidas = barbearias.filter(b => b.vencimento && new Date(b.vencimento) < new Date()).length
+  const pendentes = barbearias.filter(b => !b.ativo && !b.vencimento)
+  const ativas    = barbearias.filter(b => b.ativo && (!b.vencimento || new Date(b.vencimento) >= new Date()))
+  const vencidas  = barbearias.filter(b => b.vencimento && new Date(b.vencimento) < new Date())
+  const total     = barbearias.length
 
   return (
     <div className="min-h-screen bg-ink text-white">
@@ -41,15 +42,30 @@ export default function GodPanel() {
 
       <main className="max-w-3xl mx-auto px-5 py-6">
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-3 mb-6">
-          <Stat label="Total" value={total} />
-          <Stat label="Ativas" value={ativas} color="text-blade-400" />
-          <Stat label="Vencidas" value={vencidas} color="text-red-400" />
+        <div className="grid grid-cols-4 gap-3 mb-6">
+          <Stat label="Total"     value={total} />
+          <Stat label="Ativas"    value={ativas.length}    color="text-blade-400" />
+          <Stat label="Vencidas"  value={vencidas.length}  color="text-yellow-400" />
+          <Stat label="Pendentes" value={pendentes.length} color="text-orange-400" />
         </div>
+
+        {/* Pendentes — aprovação necessária */}
+        {pendentes.length > 0 && (
+          <div className="mb-6">
+            <h2 className="text-sm font-semibold text-orange-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+              <span>⏳</span> Aguardando aprovação ({pendentes.length})
+            </h2>
+            <div className="flex flex-col gap-3">
+              {pendentes.map(b => (
+                <PendenteCard key={b.id} barbearia={b} onUpdate={fetchAll} />
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Actions */}
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-sm font-semibold text-ink-300 uppercase tracking-wider">Barbearias</h2>
+          <h2 className="text-sm font-semibold text-ink-300 uppercase tracking-wider">Todas as contas</h2>
           <button
             onClick={() => setModal(true)}
             className="px-4 py-2 rounded-xl bg-blade-500 text-ink-900 text-sm font-bold hover:bg-blade-400 active:scale-95 transition-all"
@@ -63,7 +79,7 @@ export default function GodPanel() {
           <div className="text-center py-20 text-ink-500">Carregando...</div>
         ) : (
           <div className="flex flex-col gap-3">
-            {barbearias.map(b => (
+            {barbearias.filter(b => b.ativo || b.vencimento).map(b => (
               <BarbeariaCard key={b.id} barbearia={b} onUpdate={fetchAll} />
             ))}
           </div>
@@ -80,6 +96,72 @@ function Stat({ label, value, color = 'text-white' }) {
     <div className="bg-ink-800 border border-ink-700 rounded-xl p-4 text-center">
       <p className={`text-2xl font-bold ${color}`}>{value}</p>
       <p className="text-ink-500 text-xs uppercase tracking-wider mt-1">{label}</p>
+    </div>
+  )
+}
+
+function PendenteCard({ barbearia: b, onUpdate }) {
+  const [vencimento, setVencimento] = useState('')
+  const [saving,     setSaving]     = useState(false)
+
+  async function handleAprovar() {
+    setSaving(true)
+    await supabase.from('barbearias').update({
+      ativo: true,
+      vencimento: vencimento || null,
+    }).eq('id', b.id)
+    setSaving(false)
+    onUpdate()
+  }
+
+  return (
+    <div className="bg-orange-500/5 border border-orange-500/30 rounded-xl p-4">
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-white truncate">{b.nome}</p>
+          <p className="text-ink-400 text-xs mt-0.5">{b.owner_email}</p>
+          <p className="text-ink-500 text-xs">/{b.slug}</p>
+        </div>
+        <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-orange-500/10 border border-orange-500/30 text-orange-400 shrink-0">pendente</span>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <div className="flex gap-1.5">
+          {[['1d', 1], ['7d', 7], ['30d', 30]].map(([label, days]) => (
+            <button
+              key={label}
+              type="button"
+              onClick={() => {
+                const d = new Date()
+                d.setDate(d.getDate() + days)
+                setVencimento(d.toLocaleDateString('sv-SE'))
+              }}
+              className={`flex-1 py-1 rounded-lg text-xs font-medium border transition-all active:scale-95
+                ${vencimento === new Date(new Date().setDate(new Date().getDate() + days)).toLocaleDateString('sv-SE')
+                  ? 'bg-blade-500/20 border-blade-500/40 text-blade-400'
+                  : 'bg-ink-900 border-ink-700 text-ink-400 hover:border-ink-500'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <input
+            type="date"
+            value={vencimento}
+            onChange={e => setVencimento(e.target.value)}
+            placeholder="Vencimento (opcional)"
+            className="flex-1 bg-ink-900 border border-ink-700 rounded-lg px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blade-500/50"
+          />
+          <button
+            onClick={handleAprovar}
+            disabled={saving}
+            className="px-4 py-1.5 rounded-lg bg-blade-500 text-ink-900 text-xs font-bold hover:bg-blade-400 active:scale-95 transition-all disabled:opacity-50"
+          >
+            {saving ? '...' : 'Aprovar'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -132,15 +214,38 @@ function BarbeariaCard({ barbearia: b, onUpdate }) {
       </div>
 
       {/* Vencimento */}
-      <div className="flex items-center gap-2">
-        <label className="text-ink-500 text-xs uppercase tracking-wider whitespace-nowrap">Vencimento</label>
-        <input
-          type="date"
-          value={vencimento}
-          onChange={handleVencimento}
-          className="flex-1 bg-ink-900 border border-ink-700 rounded-lg px-2 py-1 text-sm text-white focus:outline-none focus:border-blade-500/50 min-w-0"
-        />
-        {saving && <span className="text-ink-500 text-xs">...</span>}
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-center gap-1.5">
+          {[['1d', 1], ['7d', 7], ['30d', 30]].map(([label, days]) => (
+            <button
+              key={label}
+              type="button"
+              onClick={async () => {
+                const d = new Date()
+                d.setDate(d.getDate() + days)
+                const val = d.toLocaleDateString('sv-SE')
+                setVencimento(val)
+                setSaving(true)
+                await supabase.from('barbearias').update({ vencimento: val }).eq('id', b.id)
+                setSaving(false)
+                onUpdate()
+              }}
+              className="flex-1 py-1 rounded-lg text-xs font-medium border bg-ink-900 border-ink-700 text-ink-400 hover:border-ink-500 transition-all active:scale-95"
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="text-ink-500 text-xs uppercase tracking-wider whitespace-nowrap">Venc.</label>
+          <input
+            type="date"
+            value={vencimento}
+            onChange={handleVencimento}
+            className="flex-1 bg-ink-900 border border-ink-700 rounded-lg px-2 py-1 text-sm text-white focus:outline-none focus:border-blade-500/50 min-w-0"
+          />
+          {saving && <span className="text-ink-500 text-xs">...</span>}
+        </div>
       </div>
     </div>
   )

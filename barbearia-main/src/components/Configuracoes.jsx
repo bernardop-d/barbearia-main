@@ -72,7 +72,7 @@ function TabBarbearia({ bid, barbearia }) {
   const [toast,    setToast]    = useState('')
 
   const bookingUrl = barbearia?.slug
-    ? `${window.location.origin}/booking/?b=${barbearia.slug}`
+    ? `${window.location.origin}${import.meta.env.BASE_URL}booking/?b=${barbearia.slug}`
     : null
 
   useEffect(() => {

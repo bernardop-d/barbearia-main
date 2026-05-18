@@ -97,7 +97,7 @@ export default function Dashboard({ agendamentos, onNovoAgendamento, barbearia }
 
   const isNewAccount = agendamentos.length === 0
   const bookingUrl = barbearia?.slug
-    ? `${window.location.origin}/booking/?b=${barbearia.slug}`
+    ? `${window.location.origin}${import.meta.env.BASE_URL}booking/?b=${barbearia.slug}`
     : null
 
   function copiarLink() {
