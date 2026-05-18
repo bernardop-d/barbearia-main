@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { Routes, Route, Navigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
-import { getBarbeariaAtual } from './services/supabase'
+import { getBarbeariaAtual, supabase } from './services/supabase'
 import Login       from './pages/Login'
 import Home        from './pages/Home'
 import Landing     from './pages/Landing'
@@ -10,27 +10,36 @@ import Cadastro    from './pages/Cadastro'
 import Upgrade     from './pages/Upgrade'
 import Termos      from './pages/Termos'
 import Privacidade from './pages/Privacidade'
+import GodPanel    from './pages/GodPanel'
 
-function assinaturaAtiva(_barb) {
-  return true // TODO: enforce quando ativar cobrança
+function assinaturaAtiva(barb) {
+  if (!barb) return false
+  if (!barb.ativo) return false
+  if (barb.vencimento && new Date(barb.vencimento) < new Date()) return false
+  return true
 }
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth()
   const [params] = useSearchParams()
   const [check, setCheck] = useState('loading')
+  const [isGod, setIsGod] = useState(false)
 
   useEffect(() => {
     if (!user) return
-    if (params.get('assinatura') === 'ok') { setCheck('ok'); return }
-    getBarbeariaAtual().then(barb => {
-      setCheck(assinaturaAtiva(barb) ? 'ok' : 'upgrade')
-    }).catch(() => setCheck('ok'))
+    supabase.rpc('is_god').then(({ data: god }) => {
+      if (god) { setIsGod(true); setCheck('ok'); return }
+      if (params.get('assinatura') === 'ok') { setCheck('ok'); return }
+      getBarbeariaAtual().then(barb => {
+        setCheck(assinaturaAtiva(barb) ? 'ok' : 'upgrade')
+      }).catch(() => setCheck('ok'))
+    })
   }, [user, params])
 
   if (loading || (user && check === 'loading')) return <Splash />
   if (!user) return <Landing />
   if (check === 'upgrade') return <Navigate to="/upgrade" replace />
+  if (isGod) return <GodPanel />
   return children
 }
 
