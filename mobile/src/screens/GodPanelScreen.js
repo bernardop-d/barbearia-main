@@ -1,12 +1,15 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  TextInput, ActivityIndicator, Alert, RefreshControl, Switch,
+  TextInput, ActivityIndicator, Alert, RefreshControl, Switch, Share,
 } from 'react-native'
 import { supabase } from '../services/supabase'
 import { COLORS, CARD } from '../theme'
 
-const SUPABASE_URL = 'https://phhvzajbomoyedbwebgl.supabase.co'
+const SUPABASE_URL  = 'https://phhvzajbomoyedbwebgl.supabase.co'
+const BOOKING_BASE  = 'https://bernardop-d.github.io/barbearia-main/booking/?b='
+
+const TABS = ['Pendentes', 'Ativas', 'Vencidas', 'Todas']
 
 function addDays(n) {
   const d = new Date()
@@ -14,9 +17,30 @@ function addDays(n) {
   return d.toLocaleDateString('sv-SE')
 }
 
+function hoje() {
+  return new Date().toLocaleDateString('sv-SE')
+}
+
 function diasRestantes(vencimento) {
   if (!vencimento) return null
   return Math.max(0, Math.ceil((new Date(vencimento + 'T23:59:59') - new Date()) / 86400000))
+}
+
+function fmtData(iso) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })
+}
+
+async function godFetch(path, body) {
+  const { data: { session } } = await supabase.auth.getSession()
+  const resp = await fetch(`${SUPABASE_URL}/functions/v1/${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+    body: JSON.stringify(body),
+  })
+  const json = await resp.json().catch(() => ({}))
+  if (!resp.ok) throw new Error(json.error || `Erro ${resp.status}`)
+  return json
 }
 
 export default function GodPanelScreen({ onLogout }) {
@@ -24,12 +48,15 @@ export default function GodPanelScreen({ onLogout }) {
   const [loading,    setLoading]    = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [modalNova,  setModalNova]  = useState(false)
+  const [busca,      setBusca]      = useState('')
+  const [tab,        setTab]        = useState('Pendentes')
 
   const fetchAll = useCallback(async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('barbearias')
       .select('id, nome, slug, owner_email, ativo, vencimento, created_at')
       .order('created_at', { ascending: false })
+    if (error) Alert.alert('Erro ao carregar', error.message)
     setBarbearias(data || [])
     setLoading(false)
     setRefreshing(false)
@@ -38,15 +65,28 @@ export default function GodPanelScreen({ onLogout }) {
   useEffect(() => { fetchAll() }, [fetchAll])
 
   const pendentes = barbearias.filter(b => !b.ativo && !b.vencimento)
-  const ativas    = barbearias.filter(b => b.ativo && (!b.vencimento || new Date(b.vencimento) >= new Date()))
-  const vencidas  = barbearias.filter(b => b.vencimento && new Date(b.vencimento) < new Date())
+  const ativas    = barbearias.filter(b => b.ativo && (!b.vencimento || b.vencimento >= hoje()))
+  const vencidas  = barbearias.filter(b => b.vencimento && b.vencimento < hoje())
+
+  function filtered(list) {
+    if (!busca.trim()) return list
+    const q = busca.toLowerCase()
+    return list.filter(b =>
+      b.nome?.toLowerCase().includes(q) ||
+      b.owner_email?.toLowerCase().includes(q) ||
+      b.slug?.toLowerCase().includes(q)
+    )
+  }
+
+  const currentList = filtered({
+    Pendentes: pendentes,
+    Ativas:    ativas,
+    Vencidas:  vencidas,
+    Todas:     barbearias,
+  }[tab] || [])
 
   if (loading) {
-    return (
-      <View style={s.center}>
-        <ActivityIndicator color={COLORS.green} size="large" />
-      </View>
-    )
+    return <View style={s.center}><ActivityIndicator color={COLORS.green} size="large" /></View>
   }
 
   return (
@@ -57,56 +97,88 @@ export default function GodPanelScreen({ onLogout }) {
           <View style={s.godBadge}><Text style={s.godBadgeText}>GOD</Text></View>
           <Text style={s.headerTitle}>Your Barber</Text>
         </View>
-        <TouchableOpacity onPress={onLogout}>
-          <Text style={{ color: COLORS.textMuted, fontSize: 13 }}>Sair</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 14, alignItems: 'center' }}>
+          <TouchableOpacity style={s.btnNovaHeader} onPress={() => setModalNova(true)}>
+            <Text style={s.btnNovaHeaderText}>+ Nova conta</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={onLogout}>
+            <Text style={{ color: COLORS.textMuted, fontSize: 13 }}>Sair</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Stats clicáveis */}
+      <View style={{ flexDirection: 'row', gap: 6, paddingHorizontal: 12, paddingTop: 12 }}>
+        <StatCard label="Total"     value={barbearias.length} active={tab === 'Todas'}     onPress={() => setTab('Todas')} />
+        <StatCard label="Ativas"    value={ativas.length}    color={COLORS.green} active={tab === 'Ativas'}    onPress={() => setTab('Ativas')} />
+        <StatCard label="Vencidas"  value={vencidas.length}  color="#f59e0b"      active={tab === 'Vencidas'}  onPress={() => setTab('Vencidas')} />
+        <StatCard label="Pendentes" value={pendentes.length} color="#f97316"      active={tab === 'Pendentes'} onPress={() => setTab('Pendentes')} badge={pendentes.length > 0} />
+      </View>
+
+      {/* Tabs */}
+      <View style={s.tabsRow}>
+        {TABS.map(t => (
+          <TouchableOpacity key={t} style={[s.tab, tab === t && s.tabAtivo]} onPress={() => setTab(t)}>
+            <Text style={[s.tabText, tab === t && s.tabTextAtivo]}>{t}</Text>
+            {t === 'Pendentes' && pendentes.length > 0 && (
+              <View style={s.tabDot} />
+            )}
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* Busca */}
+      <View style={{ paddingHorizontal: 12, paddingBottom: 6 }}>
+        <TextInput
+          style={s.searchInput}
+          placeholder="Buscar nome, email ou slug..."
+          placeholderTextColor={COLORS.textMuted}
+          value={busca}
+          onChangeText={setBusca}
+          clearButtonMode="while-editing"
+        />
       </View>
 
       <ScrollView
-        contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 40 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchAll() }} tintColor={COLORS.green} />}
+        contentContainerStyle={{ padding: 12, gap: 10, paddingTop: 4, paddingBottom: 40 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => { setRefreshing(true); fetchAll() }}
+            tintColor={COLORS.green}
+          />
+        }
       >
-        {/* Stats */}
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          <StatCard label="Total"     value={barbearias.length} />
-          <StatCard label="Ativas"    value={ativas.length}     color={COLORS.green} />
-          <StatCard label="Vencidas"  value={vencidas.length}   color="#f59e0b" />
-          <StatCard label="Pendentes" value={pendentes.length}  color="#f97316" />
-        </View>
-
-        {/* Pendentes */}
-        {pendentes.length > 0 && (
-          <View style={{ gap: 8 }}>
-            <Text style={s.sectionTitle}>⏳ Aguardando aprovação ({pendentes.length})</Text>
-            {pendentes.map(b => (
-              <PendenteCard key={b.id} barbearia={b} onUpdate={fetchAll} />
-            ))}
-          </View>
+        {currentList.length === 0 && (
+          <Text style={{ color: COLORS.textMuted, textAlign: 'center', marginTop: 32, fontSize: 13 }}>
+            {busca ? 'Nenhum resultado para "' + busca + '".' : `Nenhuma conta ${tab.toLowerCase()}.`}
+          </Text>
         )}
 
-        {/* Nova conta */}
-        <TouchableOpacity style={s.btnPrimary} onPress={() => setModalNova(true)}>
-          <Text style={s.btnPrimaryText}>+ Nova conta</Text>
-        </TouchableOpacity>
-
-        {/* Lista */}
-        <Text style={s.sectionTitle}>Todas as contas</Text>
-        {barbearias.filter(b => b.ativo || b.vencimento).map(b => (
-          <BarbeariaCard key={b.id} barbearia={b} onUpdate={fetchAll} />
-        ))}
+        {tab === 'Pendentes'
+          ? currentList.map(b => <PendenteCard key={b.id} barbearia={b} onUpdate={fetchAll} />)
+          : currentList.map(b => <BarbeariaCard key={b.id} barbearia={b} onUpdate={fetchAll} />)
+        }
       </ScrollView>
 
-      {modalNova && <NovaContaModal onClose={() => setModalNova(false)} onCreated={fetchAll} />}
+      {modalNova && <NovaContaModal onClose={() => setModalNova(false)} onCreated={() => { fetchAll(); setTab('Ativas') }} />}
     </View>
   )
 }
 
-function StatCard({ label, value, color = '#fff' }) {
+function StatCard({ label, value, color = '#fff', active, onPress, badge }) {
   return (
-    <View style={[CARD, s.statCard]}>
-      <Text style={[s.statValue, { color }]}>{value}</Text>
+    <TouchableOpacity
+      style={[CARD, s.statCard, active && { borderColor: 'rgba(0,232,122,0.4)', backgroundColor: 'rgba(0,232,122,0.05)' }]}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      <View style={{ position: 'relative' }}>
+        <Text style={[s.statValue, { color }]}>{value}</Text>
+        {badge && value > 0 && <View style={s.statBadge} />}
+      </View>
       <Text style={s.statLabel}>{label}</Text>
-    </View>
+    </TouchableOpacity>
   )
 }
 
@@ -120,44 +192,50 @@ function PendenteCard({ barbearia: b, onUpdate }) {
       return
     }
     setSaving(true)
-    await supabase.from('barbearias').update({ ativo: true, vencimento }).eq('id', b.id)
+    const { error } = await supabase.from('barbearias').update({ ativo: true, vencimento }).eq('id', b.id)
     setSaving(false)
+    if (error) { Alert.alert('Erro', error.message); return }
+    Alert.alert('✓ Aprovado', `${b.nome} agora tem acesso até ${vencimento}.`)
     onUpdate()
   }
 
   async function rejeitar() {
-    Alert.alert('Rejeitar conta', `Excluir permanentemente a conta de ${b.nome}?`, [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Excluir', style: 'destructive', onPress: async () => {
-        setSaving(true)
-        const { data: { session } } = await supabase.auth.getSession()
-        await fetch(`${SUPABASE_URL}/functions/v1/deletar-conta`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-          body: JSON.stringify({ barbearia_id: b.id }),
-        })
-        onUpdate()
-      }},
-    ])
+    Alert.alert(
+      'Rejeitar conta',
+      `Excluir permanentemente a conta de ${b.nome}? Essa ação não pode ser desfeita.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Excluir', style: 'destructive', onPress: async () => {
+          setSaving(true)
+          try {
+            await godFetch('deletar-conta', { barbearia_id: b.id })
+            onUpdate()
+          } catch (e) {
+            Alert.alert('Erro ao excluir', e.message)
+          } finally {
+            setSaving(false)
+          }
+        }},
+      ]
+    )
   }
 
   return (
     <View style={s.pendenteCard}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
         <View style={{ flex: 1 }}>
           <Text style={s.cardNome}>{b.nome}</Text>
           <Text style={s.cardEmail}>{b.owner_email || '—'}</Text>
-          <Text style={s.cardSlug}>/{b.slug}</Text>
+          <Text style={s.cardSlug}>/{b.slug}  ·  cadastro {fmtData(b.created_at)}</Text>
         </View>
         <View style={s.pendenteBadge}><Text style={s.pendenteBadgeText}>pendente</Text></View>
       </View>
 
-      {/* Presets */}
       <View style={{ flexDirection: 'row', gap: 6, marginBottom: 8 }}>
-        {[[1,'1d'],[7,'7d'],[30,'30d']].map(([days, label]) => (
+        {[[1,'1 dia'],[7,'7 dias'],[30,'30 dias']].map(([days, label]) => (
           <TouchableOpacity
             key={label}
-            style={[s.preset, vencimento === addDays(days) && s.presetAtivo]}
+            style={[s.preset, { flex: 1 }, vencimento === addDays(days) && s.presetAtivo]}
             onPress={() => setVencimento(addDays(days))}
           >
             <Text style={[s.presetText, vencimento === addDays(days) && s.presetTextAtivo]}>{label}</Text>
@@ -174,10 +252,16 @@ function PendenteCard({ barbearia: b, onUpdate }) {
           onChangeText={setVencimento}
         />
         <TouchableOpacity style={s.btnRejeitar} onPress={rejeitar} disabled={saving}>
-          <Text style={s.btnRejeitarText}>Rejeitar</Text>
+          {saving
+            ? <ActivityIndicator color={COLORS.error} size="small" />
+            : <Text style={s.btnRejeitarText}>Rejeitar</Text>
+          }
         </TouchableOpacity>
         <TouchableOpacity style={s.btnAprovar} onPress={aprovar} disabled={saving}>
-          <Text style={s.btnAprovarText}>{saving ? '...' : 'Aprovar'}</Text>
+          {saving
+            ? <ActivityIndicator color="#000" size="small" />
+            : <Text style={s.btnAprovarText}>Aprovar</Text>
+          }
         </TouchableOpacity>
       </View>
     </View>
@@ -190,48 +274,65 @@ function BarbeariaCard({ barbearia: b, onUpdate }) {
   const [saving,     setSaving]     = useState(false)
 
   const dias    = diasRestantes(vencimento)
-  const vencido = vencimento && new Date(vencimento) < new Date()
+  const vencido = vencimento && vencimento < hoje()
 
   async function toggleAtivo(val) {
     setAtivo(val)
-    await supabase.from('barbearias').update({ ativo: val }).eq('id', b.id)
+    const { error } = await supabase.from('barbearias').update({ ativo: val }).eq('id', b.id)
+    if (error) { setAtivo(!val); Alert.alert('Erro', error.message); return }
     onUpdate()
   }
 
   async function salvarVenc(val) {
     setVencimento(val)
     setSaving(true)
-    await supabase.from('barbearias').update({ vencimento: val || null }).eq('id', b.id)
+    const { error } = await supabase.from('barbearias').update({ vencimento: val || null }).eq('id', b.id)
     setSaving(false)
-    onUpdate()
+    if (error) Alert.alert('Erro', error.message)
+    else onUpdate()
   }
 
   async function excluir() {
-    Alert.alert('Excluir conta', `Excluir permanentemente ${b.nome}? Todos os dados serão removidos.`, [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Excluir', style: 'destructive', onPress: async () => {
-        const { data: { session } } = await supabase.auth.getSession()
-        await fetch(`${SUPABASE_URL}/functions/v1/deletar-conta`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-          body: JSON.stringify({ barbearia_id: b.id }),
-        })
-        onUpdate()
-      }},
-    ])
+    Alert.alert(
+      'Excluir conta',
+      `Excluir permanentemente ${b.nome}?\n\nTodos os agendamentos, serviços e dados serão removidos. Essa ação não pode ser desfeita.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Excluir', style: 'destructive', onPress: async () => {
+          setSaving(true)
+          try {
+            await godFetch('deletar-conta', { barbearia_id: b.id })
+            onUpdate()
+          } catch (e) {
+            Alert.alert('Erro ao excluir', e.message)
+          } finally {
+            setSaving(false)
+          }
+        }},
+      ]
+    )
+  }
+
+  async function compartilharLink() {
+    await Share.share({
+      message: `Agende seu horário na ${b.nome}: ${BOOKING_BASE}${b.slug}`,
+      url: `${BOOKING_BASE}${b.slug}`,
+    })
   }
 
   return (
-    <View style={[CARD, !ativo && { borderColor: 'rgba(255,77,77,0.3)', opacity: 0.7 }]}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-        <View style={{ flex: 1 }}>
+    <View style={[CARD, vencido && { borderColor: 'rgba(245,158,11,0.3)' }, !ativo && { opacity: 0.65 }]}>
+      {/* Linha topo */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+        <View style={{ flex: 1, marginRight: 8 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             <Text style={s.cardNome}>{b.nome}</Text>
-            {vencido && <View style={s.vencidoBadge}><Text style={s.vencidoText}>vencida</Text></View>}
-            {!ativo  && <View style={s.inativoBadge}><Text style={s.inativoText}>inativa</Text></View>}
+            {vencido && !ativo && <View style={s.vencidoBadge}><Text style={s.vencidoText}>vencida</Text></View>}
+            {vencido && ativo  && <View style={s.vencidoBadge}><Text style={s.vencidoText}>vencida</Text></View>}
+            {!ativo && !vencido && <View style={s.inativoBadge}><Text style={s.inativoText}>inativa</Text></View>}
           </View>
           <Text style={s.cardEmail}>{b.owner_email || '—'}</Text>
-          <Text style={s.cardSlug}>/{b.slug}</Text>
+          <Text style={s.cardSlug}>/{b.slug}  ·  desde {fmtData(b.created_at)}</Text>
         </View>
         <Switch
           value={ativo}
@@ -241,14 +342,15 @@ function BarbeariaCard({ barbearia: b, onUpdate }) {
         />
       </View>
 
+      {/* Dias restantes */}
       {dias !== null && (
-        <Text style={[s.cardDias, dias <= 3 && { color: '#f97316' }]}>
-          {dias} {dias === 1 ? 'dia restante' : 'dias restantes'}
+        <Text style={[s.cardDias, dias <= 3 && { color: '#f97316' }, vencido && { color: '#f59e0b' }]}>
+          {vencido ? `Venceu em ${vencimento}` : `${dias} ${dias === 1 ? 'dia restante' : 'dias restantes'} (${vencimento})`}
         </Text>
       )}
 
       {/* Presets vencimento */}
-      <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
+      <View style={{ flexDirection: 'row', gap: 6, marginTop: 10 }}>
         {[[1,'1d'],[7,'7d'],[30,'30d']].map(([days, label]) => (
           <TouchableOpacity
             key={label}
@@ -256,7 +358,7 @@ function BarbeariaCard({ barbearia: b, onUpdate }) {
             onPress={() => salvarVenc(addDays(days))}
             disabled={saving}
           >
-            <Text style={s.presetText}>{label}</Text>
+            <Text style={s.presetText}>{saving ? '...' : label}</Text>
           </TouchableOpacity>
         ))}
         <TextInput
@@ -268,9 +370,17 @@ function BarbeariaCard({ barbearia: b, onUpdate }) {
         />
       </View>
 
-      <TouchableOpacity style={{ marginTop: 10, alignSelf: 'flex-end' }} onPress={excluir}>
-        <Text style={{ color: 'rgba(255,77,77,0.5)', fontSize: 12 }}>× Excluir conta</Text>
-      </TouchableOpacity>
+      {/* Ações */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
+        <TouchableOpacity style={s.btnShare} onPress={compartilharLink}>
+          <Text style={s.btnShareText}>Compartilhar link</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={excluir} disabled={saving}>
+          <Text style={{ color: 'rgba(255,77,77,0.5)', fontSize: 12 }}>
+            {saving ? 'Excluindo...' : '× Excluir conta'}
+          </Text>
+        </TouchableOpacity>
+      </View>
     </View>
   )
 }
@@ -280,8 +390,8 @@ function NovaContaModal({ onClose, onCreated }) {
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState('')
 
-  function slugify(s) {
-    return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+  function slugify(str) {
+    return str.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
   }
 
   function set(k, v) {
@@ -298,110 +408,120 @@ function NovaContaModal({ onClose, onCreated }) {
     }
     setError(''); setLoading(true)
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const resp = await fetch(`${SUPABASE_URL}/functions/v1/criar-conta`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify(form),
-      })
-      const json = await resp.json()
-      if (!resp.ok) { setError(json.error || 'Erro ao criar conta.'); return }
-      onCreated(); onClose()
-    } catch { setError('Erro de conexão.') }
-    finally { setLoading(false) }
+      await godFetch('criar-conta', form)
+      onCreated()
+      onClose()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
     <View style={s.modalOverlay}>
-      <View style={s.modalCard}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
-          <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Nova conta</Text>
-          <TouchableOpacity onPress={onClose}><Text style={{ color: COLORS.textMuted, fontSize: 20 }}>×</Text></TouchableOpacity>
-        </View>
-
-        {[
-          ['Nome da barbearia *', 'nome',     false, 'Barbearia do João'],
-          ['Slug (URL) *',        'slug',     false, 'barbearia-do-joao'],
-          ['Email *',             'email',    false, 'dono@email.com'],
-          ['Senha *',             'password', true,  'mínimo 6 caracteres'],
-        ].map(([label, key, secure, ph]) => (
-          <View key={key} style={{ marginBottom: 10 }}>
-            <Text style={s.inputLabel}>{label}</Text>
-            <TextInput
-              style={s.input}
-              placeholder={ph}
-              placeholderTextColor={COLORS.textMuted}
-              value={form[key]}
-              onChangeText={v => set(key, key === 'slug' ? slugify(v) : v)}
-              secureTextEntry={secure}
-              autoCapitalize="none"
-              keyboardType={key === 'email' ? 'email-address' : 'default'}
-            />
+      <ScrollView contentContainerStyle={{ justifyContent: 'flex-end', flex: 1 }} keyboardShouldPersistTaps="handled">
+        <View style={s.modalCard}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Nova conta</Text>
+            <TouchableOpacity onPress={onClose}><Text style={{ color: COLORS.textMuted, fontSize: 22 }}>×</Text></TouchableOpacity>
           </View>
-        ))}
 
-        <Text style={s.inputLabel}>Vencimento</Text>
-        <View style={{ flexDirection: 'row', gap: 6, marginBottom: 10 }}>
-          {[[1,'1d'],[7,'7d'],[30,'30d']].map(([days, label]) => (
-            <TouchableOpacity
-              key={label}
-              style={[s.preset, { flex: 1 }, form.vencimento === addDays(days) && s.presetAtivo]}
-              onPress={() => set('vencimento', addDays(days))}
-            >
-              <Text style={[s.presetText, form.vencimento === addDays(days) && s.presetTextAtivo]}>{label}</Text>
-            </TouchableOpacity>
+          {[
+            ['Nome da barbearia *', 'nome',     false, 'Barbearia do João'],
+            ['Slug (URL) *',        'slug',     false, 'barbearia-do-joao'],
+            ['Email *',             'email',    false, 'dono@email.com'],
+            ['Senha *',             'password', true,  'mínimo 6 caracteres'],
+          ].map(([label, key, secure, ph]) => (
+            <View key={key} style={{ marginBottom: 10 }}>
+              <Text style={s.inputLabel}>{label}</Text>
+              <TextInput
+                style={s.input}
+                placeholder={ph}
+                placeholderTextColor={COLORS.textMuted}
+                value={form[key]}
+                onChangeText={v => set(key, key === 'slug' ? slugify(v) : v)}
+                secureTextEntry={secure}
+                autoCapitalize="none"
+                keyboardType={key === 'email' ? 'email-address' : 'default'}
+              />
+            </View>
           ))}
-        </View>
 
-        {error ? <Text style={{ color: COLORS.error, fontSize: 12, marginBottom: 8 }}>{error}</Text> : null}
+          <Text style={s.inputLabel}>Vencimento</Text>
+          <View style={{ flexDirection: 'row', gap: 6, marginBottom: 14 }}>
+            {[[1,'1 dia'],[7,'7 dias'],[30,'30 dias']].map(([days, label]) => (
+              <TouchableOpacity
+                key={label}
+                style={[s.preset, { flex: 1 }, form.vencimento === addDays(days) && s.presetAtivo]}
+                onPress={() => set('vencimento', addDays(days))}
+              >
+                <Text style={[s.presetText, form.vencimento === addDays(days) && s.presetTextAtivo]}>{label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          <TouchableOpacity style={[s.btnGhost, { flex: 1 }]} onPress={onClose}>
-            <Text style={{ color: COLORS.textMuted, fontSize: 14 }}>Cancelar</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[s.btnPrimary, { flex: 1 }]} onPress={handleSubmit} disabled={loading}>
-            <Text style={s.btnPrimaryText}>{loading ? 'Criando...' : 'Criar conta'}</Text>
-          </TouchableOpacity>
+          {error ? <Text style={{ color: COLORS.error, fontSize: 12, marginBottom: 10 }}>{error}</Text> : null}
+
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TouchableOpacity style={[s.btnGhost, { flex: 1 }]} onPress={onClose}>
+              <Text style={{ color: COLORS.textMuted, fontSize: 14 }}>Cancelar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[s.btnPrimary, { flex: 1 }]} onPress={handleSubmit} disabled={loading}>
+              <Text style={s.btnPrimaryText}>{loading ? 'Criando...' : 'Criar conta'}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      </ScrollView>
     </View>
   )
 }
 
 const s = StyleSheet.create({
-  center:          { flex: 1, backgroundColor: COLORS.bg, alignItems: 'center', justifyContent: 'center' },
-  header:          { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, paddingTop: 52, backgroundColor: COLORS.bg, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  headerTitle:     { color: '#fff', fontSize: 18, fontWeight: '700', letterSpacing: 1 },
-  godBadge:        { backgroundColor: 'rgba(248,113,113,0.15)', borderWidth: 1, borderColor: 'rgba(248,113,113,0.3)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
-  godBadgeText:    { color: '#f87171', fontSize: 9, fontWeight: '800', letterSpacing: 2 },
-  sectionTitle:    { color: '#f97316', fontSize: 11, fontWeight: '700', letterSpacing: 1.5, textTransform: 'uppercase' },
-  statCard:        { flex: 1, alignItems: 'center', padding: 12 },
-  statValue:       { fontSize: 22, fontWeight: '800' },
-  statLabel:       { color: COLORS.textMuted, fontSize: 9, fontWeight: '600', letterSpacing: 1, textTransform: 'uppercase', marginTop: 2 },
-  cardNome:        { color: '#fff', fontSize: 14, fontWeight: '700' },
-  cardEmail:       { color: COLORS.textMuted, fontSize: 11, marginTop: 1 },
-  cardSlug:        { color: 'rgba(0,232,122,0.5)', fontSize: 11, marginTop: 1 },
-  cardDias:        { color: COLORS.textMuted, fontSize: 11 },
-  pendenteCard:    { backgroundColor: 'rgba(249,115,22,0.05)', borderWidth: 1, borderColor: 'rgba(249,115,22,0.3)', borderRadius: 12, padding: 14 },
-  pendenteBadge:   { backgroundColor: 'rgba(249,115,22,0.1)', borderWidth: 1, borderColor: 'rgba(249,115,22,0.3)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, height: 20 },
-  pendenteBadgeText: { color: '#f97316', fontSize: 9, fontWeight: '700', textTransform: 'uppercase' },
-  vencidoBadge:    { backgroundColor: 'rgba(245,158,11,0.1)', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 },
-  vencidoText:     { color: '#f59e0b', fontSize: 9, fontWeight: '700' },
-  inativoBadge:    { backgroundColor: 'rgba(255,77,77,0.1)', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 },
-  inativoText:     { color: COLORS.error, fontSize: 9, fontWeight: '700' },
-  preset:          { backgroundColor: '#1a1a1a', borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, paddingVertical: 6, alignItems: 'center' },
-  presetAtivo:     { backgroundColor: 'rgba(0,232,122,0.1)', borderColor: 'rgba(0,232,122,0.4)' },
-  presetText:      { color: COLORS.textMuted, fontSize: 11, fontWeight: '600' },
-  presetTextAtivo: { color: COLORS.green },
-  input:           { backgroundColor: '#111', borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, color: '#fff', fontSize: 13 },
-  inputLabel:      { color: COLORS.textMuted, fontSize: 10, fontWeight: '600', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 },
-  btnPrimary:      { backgroundColor: COLORS.green, borderRadius: 10, paddingVertical: 13, alignItems: 'center' },
-  btnPrimaryText:  { color: '#000', fontSize: 14, fontWeight: '700' },
-  btnGhost:        { backgroundColor: '#1a1a1a', borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, paddingVertical: 13, alignItems: 'center' },
-  btnAprovar:      { backgroundColor: COLORS.green, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8, justifyContent: 'center' },
-  btnAprovarText:  { color: '#000', fontSize: 12, fontWeight: '700' },
-  btnRejeitar:     { backgroundColor: 'rgba(255,77,77,0.1)', borderWidth: 1, borderColor: 'rgba(255,77,77,0.3)', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, justifyContent: 'center' },
-  btnRejeitarText: { color: COLORS.error, fontSize: 12, fontWeight: '700' },
-  modalOverlay:    { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end', padding: 16, paddingBottom: 32 },
-  modalCard:       { backgroundColor: '#161616', borderRadius: 16, borderWidth: 1, borderColor: COLORS.border, padding: 20 },
+  center:           { flex: 1, backgroundColor: COLORS.bg, alignItems: 'center', justifyContent: 'center' },
+  header:           { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, paddingTop: 52, backgroundColor: COLORS.bg, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  headerTitle:      { color: '#fff', fontSize: 18, fontWeight: '700', letterSpacing: 1 },
+  godBadge:         { backgroundColor: 'rgba(248,113,113,0.15)', borderWidth: 1, borderColor: 'rgba(248,113,113,0.3)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
+  godBadgeText:     { color: '#f87171', fontSize: 9, fontWeight: '800', letterSpacing: 2 },
+  btnNovaHeader:    { backgroundColor: 'rgba(0,232,122,0.1)', borderWidth: 1, borderColor: 'rgba(0,232,122,0.3)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
+  btnNovaHeaderText:{ color: COLORS.green, fontSize: 12, fontWeight: '700' },
+  statCard:         { flex: 1, alignItems: 'center', padding: 10 },
+  statValue:        { fontSize: 20, fontWeight: '800' },
+  statLabel:        { color: COLORS.textMuted, fontSize: 9, fontWeight: '600', letterSpacing: 1, textTransform: 'uppercase', marginTop: 2 },
+  statBadge:        { position: 'absolute', top: -2, right: -6, width: 7, height: 7, borderRadius: 4, backgroundColor: '#f97316' },
+  tabsRow:          { flexDirection: 'row', paddingHorizontal: 12, paddingTop: 10, paddingBottom: 6, gap: 6 },
+  tab:              { flex: 1, paddingVertical: 6, borderRadius: 8, alignItems: 'center', backgroundColor: '#111', borderWidth: 1, borderColor: COLORS.border, flexDirection: 'row', justifyContent: 'center', gap: 4 },
+  tabAtivo:         { backgroundColor: 'rgba(0,232,122,0.08)', borderColor: 'rgba(0,232,122,0.35)' },
+  tabText:          { color: COLORS.textMuted, fontSize: 10, fontWeight: '600', letterSpacing: 0.5 },
+  tabTextAtivo:     { color: COLORS.green },
+  tabDot:           { width: 5, height: 5, borderRadius: 3, backgroundColor: '#f97316', marginTop: 1 },
+  searchInput:      { backgroundColor: '#111', borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, color: '#fff', fontSize: 13 },
+  cardNome:         { color: '#fff', fontSize: 14, fontWeight: '700' },
+  cardEmail:        { color: COLORS.textMuted, fontSize: 11, marginTop: 1 },
+  cardSlug:         { color: 'rgba(0,232,122,0.5)', fontSize: 11, marginTop: 1 },
+  cardDias:         { color: COLORS.textMuted, fontSize: 11 },
+  pendenteCard:     { backgroundColor: 'rgba(249,115,22,0.05)', borderWidth: 1, borderColor: 'rgba(249,115,22,0.3)', borderRadius: 12, padding: 14 },
+  pendenteBadge:    { backgroundColor: 'rgba(249,115,22,0.1)', borderWidth: 1, borderColor: 'rgba(249,115,22,0.3)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, height: 20 },
+  pendenteBadgeText:{ color: '#f97316', fontSize: 9, fontWeight: '700', textTransform: 'uppercase' },
+  vencidoBadge:     { backgroundColor: 'rgba(245,158,11,0.1)', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 },
+  vencidoText:      { color: '#f59e0b', fontSize: 9, fontWeight: '700' },
+  inativoBadge:     { backgroundColor: 'rgba(255,77,77,0.1)', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 },
+  inativoText:      { color: COLORS.error, fontSize: 9, fontWeight: '700' },
+  preset:           { backgroundColor: '#1a1a1a', borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, paddingVertical: 7, alignItems: 'center' },
+  presetAtivo:      { backgroundColor: 'rgba(0,232,122,0.1)', borderColor: 'rgba(0,232,122,0.4)' },
+  presetText:       { color: COLORS.textMuted, fontSize: 11, fontWeight: '600' },
+  presetTextAtivo:  { color: COLORS.green },
+  input:            { backgroundColor: '#111', borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, color: '#fff', fontSize: 13 },
+  inputLabel:       { color: COLORS.textMuted, fontSize: 10, fontWeight: '600', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 },
+  btnPrimary:       { backgroundColor: COLORS.green, borderRadius: 10, paddingVertical: 13, alignItems: 'center' },
+  btnPrimaryText:   { color: '#000', fontSize: 14, fontWeight: '700' },
+  btnGhost:         { backgroundColor: '#1a1a1a', borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, paddingVertical: 13, alignItems: 'center' },
+  btnAprovar:       { backgroundColor: COLORS.green, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8, justifyContent: 'center', minWidth: 72 },
+  btnAprovarText:   { color: '#000', fontSize: 12, fontWeight: '700' },
+  btnRejeitar:      { backgroundColor: 'rgba(255,77,77,0.1)', borderWidth: 1, borderColor: 'rgba(255,77,77,0.3)', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, justifyContent: 'center', minWidth: 72 },
+  btnRejeitarText:  { color: COLORS.error, fontSize: 12, fontWeight: '700' },
+  btnShare:         { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#1a1a1a', borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
+  btnShareText:     { color: COLORS.textMuted, fontSize: 11, fontWeight: '600' },
+  modalOverlay:     { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.75)' },
+  modalCard:        { backgroundColor: '#161616', borderTopLeftRadius: 20, borderTopRightRadius: 20, borderWidth: 1, borderColor: COLORS.border, padding: 20, paddingBottom: 36 },
 })
