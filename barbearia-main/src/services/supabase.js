@@ -167,7 +167,7 @@ export async function criarBarbeariaAtual(nome, slug) {
   if (!user) throw new Error('Não autenticado')
   const { data, error } = await supabase
     .from('barbearias')
-    .insert([{ nome, slug, owner_id: user.id, ativo: false }])
+    .insert([{ nome, slug, owner_id: user.id, owner_email: user.email, ativo: false }])
     .select().single()
   if (error) throw error
 

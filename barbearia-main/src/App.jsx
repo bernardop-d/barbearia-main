@@ -16,7 +16,10 @@ function checkAcesso(barb) {
   if (!barb) return 'cadastro'
   if (!barb.ativo && !barb.vencimento) return 'pendente'
   if (!barb.ativo) return 'upgrade'
-  if (barb.vencimento && new Date(barb.vencimento) < new Date()) return 'upgrade'
+  if (barb.vencimento) {
+    const hoje = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' })
+    if (barb.vencimento < hoje) return 'upgrade'
+  }
   return 'ok'
 }
 
