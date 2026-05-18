@@ -32,7 +32,8 @@ function PrivateRoute({ children }) {
   useEffect(() => {
     if (!user) return
     supabase.rpc('is_god').then(({ data: god }) => {
-      if (god) { setIsGod(true); setCheck('ok'); return }
+      const godByEmail = user.email === 'contato.bernardopd@gmail.com'
+      if (god || godByEmail) { setIsGod(true); setCheck('ok'); return }
       if (params.get('assinatura') === 'ok') { setCheck('ok'); return }
       getBarbeariaAtual().then(barb => {
         setCheck(checkAcesso(barb))
