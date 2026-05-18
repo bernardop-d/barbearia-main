@@ -371,6 +371,15 @@ function TabAssinatura({ barbearia }) {
 
 // ─── Tab: Serviços ─────────────────────────────────────────────────────────
 
+const SERVICOS_PADRAO = [
+  { label: 'Corte Normal',   desc: 'Corte tradicional',          preco: 35,  ativo: true },
+  { label: 'Cabelo + Barba', desc: 'Corte + barba completa',     preco: 55,  ativo: true },
+  { label: 'Platinado',      desc: 'Descoloração completa',      preco: 60,  ativo: true },
+  { label: 'Tinta Preta',    desc: 'Adicional de tinta',         preco: 15,  ativo: true },
+  { label: 'Plano Mensal',   desc: 'Corte todo mês',             preco: 80,  ativo: true },
+  { label: 'Mensal + Tinta', desc: 'Corte mensal + tinta',       preco: 100, ativo: true },
+]
+
 function TabServicos({ bid }) {
   const [servicos, setServicos] = useState([])
   const [loading,  setLoading]  = useState(true)
@@ -390,6 +399,15 @@ function TabServicos({ bid }) {
   function showToast(msg) {
     setToast(msg)
     setTimeout(() => setToast(''), 2500)
+  }
+
+  async function handleImportarPadrao() {
+    if (!window.confirm('Isso vai importar os 6 serviços padrão. Continuar?')) return
+    try {
+      await Promise.all(SERVICOS_PADRAO.map(s => criarServico({ ...s, barbearia_id: bid })))
+      await carregar()
+      showToast('Serviços padrão importados!')
+    } catch { showToast('Erro ao importar.') }
   }
 
   async function handleToggleAtivo(s) {
@@ -430,7 +448,12 @@ function TabServicos({ bid }) {
         </div>
       )}
 
-      <div className="flex justify-end">
+      <div className="flex gap-2 justify-end flex-wrap">
+        {servicos.length === 0 && !loading && (
+          <button onClick={handleImportarPadrao} className="text-sm px-4 py-2.5 rounded-xl border border-ink-600 text-ink-300 hover:border-ink-500 active:scale-95 transition-all">
+            Importar padrão
+          </button>
+        )}
         <button onClick={() => setFormNovo(true)} className="btn-primary text-sm px-4 py-2.5 max-w-fit">
           + Serviço
         </button>

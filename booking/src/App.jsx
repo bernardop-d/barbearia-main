@@ -113,10 +113,7 @@ export default function App() {
     buscarBarbeiros(bid).then(setBarbeiros)
     getServicosCustom(bid).then(custom => {
       if (custom.length > 0) {
-        setAllServicos([
-          ...SERVICOS_BASE,
-          ...custom.map(sv => ({ id: sv.id, label: sv.label, preco: sv.preco, desc: sv.desc || '' })),
-        ])
+        setAllServicos(custom.map(sv => ({ id: sv.id, label: sv.label, preco: sv.preco, desc: sv.desc || '' })))
       }
     })
     supabase.auth.getSession().then(({ data: { session } }) => {
